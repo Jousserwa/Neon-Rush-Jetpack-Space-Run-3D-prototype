@@ -163,12 +163,12 @@ internal object CorridorGltf {
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]}
             ],
             "materials":[
-              {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.12,0.16,0.19,1],"metallicFactor":0.55,"roughnessFactor":0.38}},
+              {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.28,0.34,0.38,1],"metallicFactor":0.22,"roughnessFactor":0.62}},
               {"name":"Cyan energy","emissiveFactor":[0.02,0.75,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.02,0.35,0.48,1],"metallicFactor":0.25,"roughnessFactor":0.25}},
               {"name":"Magenta energy","emissiveFactor":[0.9,0.025,0.35],"pbrMetallicRoughness":{"baseColorFactor":[0.4,0.015,0.12,1],"metallicFactor":0.2,"roughnessFactor":0.3}},
-              {"name":"Forest canopy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.22,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.92}},
+              {"name":"Forest canopy","pbrMetallicRoughness":{"baseColorFactor":[0.09,0.32,0.11,1],"metallicFactor":0.0,"roughnessFactor":0.92}},
               {"name":"Forest earth","pbrMetallicRoughness":{"baseColorFactor":[0.075,0.09,0.065,1],"metallicFactor":0.0,"roughnessFactor":0.98}},
-              {"name":"Bark and roots","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.095,0.045,1],"metallicFactor":0.0,"roughnessFactor":0.96}},
+              {"name":"Bark and roots","pbrMetallicRoughness":{"baseColorFactor":[0.30,0.16,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.96}},
               {"name":"Forest undergrowth","pbrMetallicRoughness":{"baseColorFactor":[0.045,0.16,0.045,1],"metallicFactor":0.0,"roughnessFactor":1.0}},
               {"name":"Weathered stone","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.22,0.20,1],"metallicFactor":0.0,"roughnessFactor":0.94}}
             ],
