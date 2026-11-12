@@ -66,6 +66,11 @@ internal object CorridorGltf {
         }
 
         nodes += """{"name":"pilot_root","children":[]}"""
+        nodes += """{"name":"pilot_head_root","translation":[0,0.22,-3.42],"children":[]}"""
+        val headStart = nodes.size
+        fun headPart(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, name: String) {
+            node(mesh, x, y - 0.22f, z + 3.42f, sx, sy, sz, name)
+        }
         fun pilotPart(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, name: String) {
             node(mesh, x, y, z, sx, sy, sz, name)
         }
@@ -73,12 +78,14 @@ internal object CorridorGltf {
         val alloy = 8
         val cyan = 9
         val magenta = 10
-        pilotPart(alloy, 0f, 0.22f, -3.42f, 0.37f, 0.42f, 0.34f, "pilot_helmet")
-        pilotPart(cyan, 0f, 0.18f, -3.105f, 0.305f, 0.275f, 0.105f, "pilot_visor")
-        pilotPart(magenta, 0.105f, 0.385f, -3.13f, 0.205f, 0.105f, 0.075f, "pilot_visor_magenta")
-        pilotPart(cyan, -0.285f, 0.19f, -3.13f, 0.065f, 0.12f, 0.07f, "pilot_helmet_cyan_rim")
-        pilotPart(magenta, -0.355f, 0.12f, -3.34f, 0.085f, 0.15f, 0.09f, "pilot_helmet_side_disc")
-        pilotPart(cyan, -0.36f, 0.12f, -3.245f, 0.035f, 0.075f, 0.035f, "pilot_helmet_side_core")
+        headPart(alloy, 0f, 0.22f, -3.42f, 0.37f, 0.42f, 0.34f, "pilot_helmet")
+        headPart(cyan, 0f, 0.18f, -3.105f, 0.305f, 0.275f, 0.105f, "pilot_visor")
+        headPart(magenta, 0.105f, 0.385f, -3.13f, 0.205f, 0.105f, 0.075f, "pilot_visor_magenta")
+        headPart(cyan, -0.285f, 0.19f, -3.13f, 0.065f, 0.12f, 0.07f, "pilot_helmet_cyan_rim")
+        headPart(magenta, -0.355f, 0.12f, -3.34f, 0.085f, 0.15f, 0.09f, "pilot_helmet_side_disc")
+        headPart(cyan, -0.36f, 0.12f, -3.245f, 0.035f, 0.075f, 0.035f, "pilot_helmet_side_core")
+        val headEnd = nodes.size
+        nodes[1] = """{"name":"pilot_head_root","translation":[0,0.22,-3.42],"children":[${(headStart until headEnd).joinToString(",")}]}"""
         pilotPart(alloy, 0f, -0.19f, -3.43f, 0.19f, 0.16f, 0.19f, "pilot_neck")
         pilotPart(alloy, 0f, -0.31f, -3.43f, 0.235f, 0.075f, 0.22f, "pilot_neck_collar")
         pilotPart(alloy, 0f, -0.69f, -3.42f, 0.43f, 0.48f, 0.245f, "pilot_torso")
@@ -122,7 +129,7 @@ internal object CorridorGltf {
         pilotPart(magenta, -0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_left_boot_sole")
         pilotPart(magenta, 0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_right_boot_sole")
         val environmentStartIndex = nodes.size
-        nodes[0] = """{"name":"pilot_root","children":[${(1 until environmentStartIndex).joinToString(",") }]}"""
+        nodes[0] = """{"name":"pilot_root","children":[1,${(headEnd until environmentStartIndex).joinToString(",")}]}"""
 
         for (i in 0..3) {
             val z = -4.5f - i * 9f
