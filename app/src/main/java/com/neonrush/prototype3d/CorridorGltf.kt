@@ -60,7 +60,7 @@ internal object CorridorGltf {
           {
             "asset":{"version":"2.0","generator":"Neon Rush 3D Prototype"},
             "scene":0,
-            "scenes":[{"nodes":[${nodes.indices.joinToString(",") { it.toString() }}]}],
+            "scenes":[{"nodes":[${(listOf(0) + (11 until nodes.size)).joinToString(",")}]}],
             "nodes":[${nodes.joinToString(",")}],
             "meshes":[
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0}]},
