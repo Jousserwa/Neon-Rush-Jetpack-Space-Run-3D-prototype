@@ -42,11 +42,15 @@ internal object CorridorGltf {
         node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_left_pack_light")
         node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_right_pack_light")
 
-        node(0, 0f, -1.65f, -12f, 2.6f, 0.15f, 14f)
-        node(0, 0f, 1.65f, -12f, 2.6f, 0.15f, 14f)
-        node(0, -2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
-        node(0, 2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
-        node(0, 0f, 0f, -26f, 2.6f, 1.8f, 0.15f)
+        // Four repeating 9-metre environment sections form a continuous corridor.
+        for (i in 0..3) {
+            val z = -4.5f - i * 9f
+            node(0, 0f, -1.65f, z, 2.6f, 0.15f, 9f, "env_floor_$i")
+            node(0, 0f, 1.65f, z, 2.6f, 0.15f, 9f, "env_ceiling_$i")
+            node(0, -2.6f, 0f, z, 0.15f, 1.8f, 9f, "env_wall_left_$i")
+            node(0, 2.6f, 0f, z, 0.15f, 1.8f, 9f, "env_wall_right_$i")
+        }
+        node(0, 0f, 0f, -42f, 2.6f, 1.8f, 0.15f, "far_end_wall")
         for (i in 0..6) {
             val z = -1.5f - i * 3.7f
             node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_left_$i")
