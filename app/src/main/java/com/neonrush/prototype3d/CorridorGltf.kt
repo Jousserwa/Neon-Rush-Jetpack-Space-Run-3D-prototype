@@ -71,7 +71,7 @@ internal object CorridorGltf {
         for (i in 0..3) {
             val z = -40.5f - i * 9f
             node(0, 0f, -2.2f, z, 8.5f, 0.15f, 9f, "hangar_floor_$i")
-            node(0, 0f, 4.8f, z, 8.5f, 0.15f, 9f, "hangar_ceiling_$i")
+            node(0, 0f, 2.6f, z, 8.5f, 0.15f, 9f, "hangar_ceiling_$i")
             node(0, -8.5f, 1.3f, z, 0.15f, 3.5f, 9f, "hangar_wall_left_$i")
             node(0, 8.5f, 1.3f, z, 0.15f, 3.5f, 9f, "hangar_wall_right_$i")
             node(0, -7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_left_$i")
@@ -95,8 +95,8 @@ internal object CorridorGltf {
             // Overhead service rails and bulky equipment pods add depth and scale.
             node(0, -2.75f, 4.35f, z, 0.16f, 0.14f, 8.2f, "hangar_rail_left_$i")
             node(0, 2.75f, 4.35f, z, 0.16f, 0.14f, 8.2f, "hangar_rail_right_$i")
-            node(0, -6.15f, -0.55f, z - 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_left_$i")
-            node(0, 6.15f, -0.55f, z + 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_right_$i")
+            node(0, -2.0f, -0.55f, z - 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_left_$i")
+            node(0, 2.0f, -0.55f, z + 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_right_$i")
         }
 
 
@@ -106,42 +106,42 @@ internal object CorridorGltf {
             val z = -130.5f - i * 9f
             // Broad ground with offset earth patches to break the perfectly flat silhouette.
             node(4, 0f, -2.2f, z, 25f, 0.16f, 9f, "forest_ground_$i")
-            node(6, -7.8f, -2.02f, z - 2.0f, 4.8f, 0.12f, 3.4f, "forest_moss_left_$i")
+            node(6, -7.8f, -2.02f, z - 2.0f, 2.6f, 0.12f, 3.4f, "forest_moss_left_$i")
             node(6, 8.2f, -2.04f, z + 2.3f, 4.2f, 0.10f, 3.0f, "forest_moss_right_$i")
             node(4, -3.9f, -1.98f, z + 1.5f, 1.8f, 0.18f, 1.15f, "forest_earth_mound_left_$i")
             node(4, 4.3f, -2.00f, z - 2.1f, 2.0f, 0.16f, 1.25f, "forest_earth_mound_right_$i")
 
             // Distant tree line: staggered trunks and layered crowns for depth.
-            node(5, -12.2f, -0.25f, z - 1.0f, 0.38f, 2.2f, 0.42f, "forest_trunk_far_left_$i")
-            node(5, 12.5f, -0.25f, z - 3.0f, 0.42f, 2.3f, 0.45f, "forest_trunk_far_right_$i")
-            node(3, -12.2f, 1.55f, z - 1.0f, 2.7f, 2.25f, 2.55f, "forest_canopy_far_left_$i")
-            node(3, 12.5f, 1.7f, z - 3.0f, 3.0f, 2.35f, 2.8f, "forest_canopy_far_right_$i")
-            node(3, -14.0f, 2.35f, z - 1.0f, 1.8f, 1.45f, 1.9f, "forest_crown_far_left_$i")
-            node(3, 14.2f, 2.45f, z - 3.0f, 1.9f, 1.55f, 2.0f, "forest_crown_far_right_$i")
+            node(5, -2.6f, -0.25f, z - 1.0f, 0.38f, 2.2f, 0.42f, "forest_trunk_far_left_$i")
+            node(5, 2.6f, -0.25f, z - 3.0f, 0.42f, 2.3f, 0.45f, "forest_trunk_far_right_$i")
+            node(3, -2.6f, 1.55f, z - 1.0f, 2.7f, 2.25f, 2.55f, "forest_canopy_far_left_$i")
+            node(3, 2.6f, 1.7f, z - 3.0f, 3.0f, 2.35f, 2.8f, "forest_canopy_far_right_$i")
+            node(3, -5.4f, 2.35f, z - 1.0f, 1.8f, 1.45f, 1.9f, "forest_crown_far_left_$i")
+            node(3, 5.4f, 2.45f, z - 3.0f, 1.9f, 1.55f, 2.0f, "forest_crown_far_right_$i")
 
             // Near trees use several differently sized foliage clusters instead of one box.
-            node(5, -7.0f, -0.55f, z - 3.1f, 0.34f, 1.75f, 0.38f, "forest_trunk_left_$i")
-            node(5, 7.4f, -0.55f, z + 2.7f, 0.36f, 1.85f, 0.4f, "forest_trunk_right_$i")
-            node(5, -6.25f, 0.12f, z - 3.1f, 0.22f, 0.72f, 0.24f, "forest_branch_left_$i")
-            node(5, 6.65f, 0.18f, z + 2.7f, 0.24f, 0.78f, 0.25f, "forest_branch_right_$i")
-            node(3, -7.0f, 0.75f, z - 3.1f, 2.0f, 1.75f, 1.95f, "forest_canopy_left_$i")
-            node(3, -8.25f, 1.35f, z - 3.0f, 1.45f, 1.45f, 1.5f, "forest_canopy_left_cluster_$i")
-            node(3, -5.85f, 1.25f, z - 3.25f, 1.35f, 1.25f, 1.4f, "forest_canopy_left_outer_$i")
-            node(3, 7.4f, 0.8f, z + 2.7f, 2.1f, 1.8f, 2.0f, "forest_canopy_right_$i")
-            node(3, 6.15f, 1.4f, z + 2.65f, 1.5f, 1.4f, 1.55f, "forest_canopy_right_cluster_$i")
-            node(3, 8.7f, 1.35f, z + 2.85f, 1.4f, 1.3f, 1.45f, "forest_canopy_right_outer_$i")
-            node(3, -7.7f, 2.0f, z - 3.0f, 1.2f, 1.15f, 1.25f, "forest_crown_left_$i")
-            node(3, 8.0f, 2.15f, z + 2.8f, 1.25f, 1.2f, 1.3f, "forest_crown_right_$i")
+            node(5, -2.8f, -0.55f, z - 3.1f, 0.34f, 1.75f, 0.38f, "forest_trunk_left_$i")
+            node(5, 2.8f, -0.55f, z + 2.7f, 0.36f, 1.85f, 0.4f, "forest_trunk_right_$i")
+            node(5, -2.35f, 0.12f, z - 3.1f, 0.22f, 0.72f, 0.24f, "forest_branch_left_$i")
+            node(5, 2.35f, 0.18f, z + 2.7f, 0.24f, 0.78f, 0.25f, "forest_branch_right_$i")
+            node(3, -2.8f, 0.75f, z - 3.1f, 2.0f, 1.75f, 1.95f, "forest_canopy_left_$i")
+            node(3, -3.55f, 1.35f, z - 3.0f, 1.45f, 1.45f, 1.5f, "forest_canopy_left_cluster_$i")
+            node(3, -2.0f, 1.25f, z - 3.25f, 1.35f, 1.25f, 1.4f, "forest_canopy_left_outer_$i")
+            node(3, 2.8f, 0.8f, z + 2.7f, 2.1f, 1.8f, 2.0f, "forest_canopy_right_$i")
+            node(3, 2.0f, 1.4f, z + 2.65f, 1.5f, 1.4f, 1.55f, "forest_canopy_right_cluster_$i")
+            node(3, 3.55f, 1.35f, z + 2.85f, 1.4f, 1.3f, 1.45f, "forest_canopy_right_outer_$i")
+            node(3, -3.0f, 2.0f, z - 3.0f, 1.2f, 1.15f, 1.25f, "forest_crown_left_$i")
+            node(3, 3.0f, 2.15f, z + 2.8f, 1.25f, 1.2f, 1.3f, "forest_crown_right_$i")
 
             // Low shrubs, exposed roots, fallen timber and rocks stay outside the flight lane.
-            node(6, -4.7f, -1.72f, z - 1.8f, 1.25f, 0.42f, 0.85f, "forest_shrub_left_$i")
-            node(6, 4.9f, -1.73f, z + 1.7f, 1.35f, 0.4f, 0.9f, "forest_shrub_right_$i")
-            node(5, -6.2f, -1.82f, z + 1.4f, 1.35f, 0.12f, 0.16f, "forest_root_left_$i")
-            node(5, 6.6f, -1.83f, z - 1.7f, 1.45f, 0.12f, 0.16f, "forest_root_right_$i")
-            node(7, -3.8f, -1.86f, z + 1.4f, 1.0f, 0.45f, 0.8f, "forest_rock_left_$i")
-            node(7, 4.0f, -1.88f, z - 2.0f, 1.25f, 0.38f, 0.95f, "forest_rock_right_$i")
-            node(1, -4.8f, -1.72f, z - 3.0f, 0.08f, 0.045f, 0.7f, "forest_glow_left_$i")
-            node(1, 4.8f, -1.72f, z + 2.8f, 0.08f, 0.045f, 0.7f, "forest_glow_right_$i")
+            node(6, -2.3f, -1.72f, z - 1.8f, 1.25f, 0.42f, 0.85f, "forest_shrub_left_$i")
+            node(6, 2.3f, -1.73f, z + 1.7f, 1.35f, 0.4f, 0.9f, "forest_shrub_right_$i")
+            node(5, -3.1f, -1.82f, z + 1.4f, 1.35f, 0.12f, 0.16f, "forest_root_left_$i")
+            node(5, 3.1f, -1.83f, z - 1.7f, 1.45f, 0.12f, 0.16f, "forest_root_right_$i")
+            node(7, -2.0f, -1.86f, z + 1.4f, 1.0f, 0.45f, 0.8f, "forest_rock_left_$i")
+            node(7, 2.0f, -1.88f, z - 2.0f, 1.25f, 0.38f, 0.95f, "forest_rock_right_$i")
+            node(1, -2.6f, -1.72f, z - 3.0f, 0.08f, 0.045f, 0.7f, "forest_glow_left_$i")
+            node(1, 2.6f, -1.72f, z + 2.8f, 0.08f, 0.045f, 0.7f, "forest_glow_right_$i")
             node(2, -1.5f, -1.73f, z, 0.045f, 0.035f, 0.55f, "forest_path_marker_left_$i")
             node(2, 1.5f, -1.73f, z, 0.045f, 0.035f, 0.55f, "forest_path_marker_right_$i")
         }
@@ -163,7 +163,7 @@ internal object CorridorGltf {
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]}
             ],
             "materials":[
-              {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.065,0.12,1],"metallicFactor":0.72,"roughnessFactor":0.38}},
+              {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.12,0.16,0.19,1],"metallicFactor":0.55,"roughnessFactor":0.38}},
               {"name":"Cyan energy","emissiveFactor":[0.02,0.75,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.02,0.35,0.48,1],"metallicFactor":0.25,"roughnessFactor":0.25}},
               {"name":"Magenta energy","emissiveFactor":[0.9,0.025,0.35],"pbrMetallicRoughness":{"baseColorFactor":[0.4,0.015,0.12,1],"metallicFactor":0.2,"roughnessFactor":0.3}},
               {"name":"Forest canopy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.22,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.92}},
