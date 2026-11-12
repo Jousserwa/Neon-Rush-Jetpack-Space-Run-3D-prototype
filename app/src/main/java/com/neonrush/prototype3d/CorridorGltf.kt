@@ -4,7 +4,6 @@ import android.util.Base64
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/** A self-contained glTF corridor: procedural cube geometry, no external assets. */
 internal object CorridorGltf {
     fun create(): ByteBuffer {
         val vertices = floatArrayOf(
@@ -26,20 +25,23 @@ internal object CorridorGltf {
         val dataUri = "data:application/octet-stream;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
 
         val nodes = mutableListOf<String>()
-        fun node(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float) {
-            nodes += """{"mesh":$mesh,"translation":[$x,$y,$z],"scale":[$sx,$sy,$sz]}"""
+        fun node(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, name: String? = null) {
+            val nodeName = name?.let { "\"name\":\"$it\"," } ?: ""
+            nodes += """{$nodeName"mesh":$mesh,"translation":[$x,$y,$z],"scale":[$sx,$sy,$sz]}"""
         }
-        // Temporary low-poly pilot, facing down the corridor (-Z).
-        node(0, 0f, -0.58f, -3.4f, 0.52f, 0.72f, 0.32f) // torso
-        node(0, 0f, 0.12f, -3.42f, 0.38f, 0.38f, 0.38f) // helmet
-        node(1, 0f, 0.13f, -3.20f, 0.27f, 0.09f, 0.035f) // visor
-        node(0, 0f, -0.55f, -3.82f, 0.36f, 0.42f, 0.24f) // jetpack
-        node(2, -0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f) // left arm
-        node(2, 0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f) // right arm
-        node(0, -0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f) // left leg
-        node(0, 0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f) // right leg
-        node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f) // pack light
-        node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f) // pack light
+
+        nodes += """{"name":"pilot_root","children":[1,2,3,4,5,6,7,8,9,10]}"""
+        node(0, 0f, -0.58f, -3.4f, 0.52f, 0.72f, 0.32f, "pilot_torso")
+        node(0, 0f, 0.12f, -3.42f, 0.38f, 0.38f, 0.38f, "pilot_helmet")
+        node(1, 0f, 0.13f, -3.20f, 0.27f, 0.09f, 0.035f, "pilot_visor")
+        node(0, 0f, -0.55f, -3.82f, 0.36f, 0.42f, 0.24f, "pilot_jetpack")
+        node(2, -0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f, "pilot_left_arm")
+        node(2, 0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f, "pilot_right_arm")
+        node(0, -0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f, "pilot_left_leg")
+        node(0, 0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f, "pilot_right_leg")
+        node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_left_pack_light")
+        node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_right_pack_light")
+
         node(0, 0f, -1.65f, -12f, 2.6f, 0.15f, 14f)
         node(0, 0f, 1.65f, -12f, 2.6f, 0.15f, 14f)
         node(0, -2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
@@ -47,12 +49,12 @@ internal object CorridorGltf {
         node(0, 0f, 0f, -26f, 2.6f, 1.8f, 0.15f)
         for (i in 0..6) {
             val z = -1.5f - i * 3.7f
-            node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f)
-            node(1, 2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f)
-            node(1, -1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f)
-            node(1, 1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f)
+            node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_left_$i")
+            node(1, 2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_right_$i")
+            node(1, -1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f, "floor_left_$i")
+            node(1, 1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f, "floor_right_$i")
         }
-        for (i in 0..5) node(2, 0f, 1.54f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f)
+        for (i in 0..5) node(2, 0f, 1.54f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f, "ceiling_marker_$i")
 
         val json = """
           {
