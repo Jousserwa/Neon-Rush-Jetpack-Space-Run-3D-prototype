@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
     private val corridorNodes = mutableListOf<MovingNode>()
     private val doorNodes = mutableListOf<MovingNode>()
     private val hangarNodes = mutableListOf<MovingNode>()
+    private val forestNodes = mutableListOf<MovingNode>()
     private var transitionComplete = false
 
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -144,6 +145,20 @@ class MainActivity : ComponentActivity() {
             ).forEach { addMovingNode(it, hangarNodes) }
         }
 
+        for (i in 0..3) {
+            listOf(
+                "forest_ground_$i",
+                "forest_trunk_far_left_$i", "forest_trunk_far_right_$i",
+                "forest_canopy_far_left_$i", "forest_canopy_far_right_$i",
+                "forest_trunk_left_$i", "forest_trunk_right_$i",
+                "forest_canopy_left_$i", "forest_canopy_right_$i",
+                "forest_crown_left_$i", "forest_crown_right_$i",
+                "forest_rock_left_$i", "forest_rock_right_$i",
+                "forest_glow_left_$i", "forest_glow_right_$i",
+                "forest_path_marker_left_$i", "forest_path_marker_right_$i"
+            ).forEach { addMovingNode(it, forestNodes) }
+        }
+
         animationStartNanos = 0L
         animationNodesReady = true
     }
@@ -213,12 +228,31 @@ class MainActivity : ComponentActivity() {
             applyNodeTransform(node, x, node.baseZ + travel)
         }
 
-        // Hangar bays continuously stream past the pilot and recycle ahead.
-        // This keeps the hangar playable instead of freezing at the end of the transition.
-        hangarNodes.forEach { node ->
-            var z = node.baseZ + travel
-            while (z > 5f) z -= 36f
-            applyNodeTransform(node, node.baseX, z)
+        // The hangar runs after the corridor. At 26 seconds, the route opens
+        // into an outdoor forest and the hangar falls behind the player.
+        val hasEnteredForest = seconds >= 26f
+        if (!hasEnteredForest) {
+            hangarNodes.forEach { node ->
+                var z = node.baseZ + travel
+                while (z > 5f) z -= 36f
+                applyNodeTransform(node, node.baseX, z)
+            }
+        } else {
+            hangarNodes.forEach { node ->
+                applyNodeTransform(node, node.baseX, node.baseZ - 160f)
+            }
+        }
+
+        // Forest sections begin approaching before the threshold, then recycle
+        // continuously as the player flies along the open woodland route.
+        forestNodes.forEach { node ->
+            if (!hasEnteredForest) {
+                applyNodeTransform(node, node.baseX, node.baseZ + travel)
+            } else {
+                var z = node.baseZ + travel
+                while (z > 5f) z -= 36f
+                applyNodeTransform(node, node.baseX, z)
+            }
         }
     }
 
