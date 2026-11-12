@@ -29,6 +29,17 @@ internal object CorridorGltf {
         fun node(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float) {
             nodes += """{"mesh":$mesh,"translation":[$x,$y,$z],"scale":[$sx,$sy,$sz]}"""
         }
+        // Temporary low-poly pilot, facing down the corridor (-Z).
+        node(0, 0f, -0.58f, -3.4f, 0.52f, 0.72f, 0.32f) // torso
+        node(0, 0f, 0.12f, -3.42f, 0.38f, 0.38f, 0.38f) // helmet
+        node(1, 0f, 0.13f, -3.20f, 0.27f, 0.09f, 0.035f) // visor
+        node(0, 0f, -0.55f, -3.82f, 0.36f, 0.42f, 0.24f) // jetpack
+        node(2, -0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f) // left arm
+        node(2, 0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f) // right arm
+        node(0, -0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f) // left leg
+        node(0, 0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f) // right leg
+        node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f) // pack light
+        node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f) // pack light
         node(0, 0f, -1.65f, -12f, 2.6f, 0.15f, 14f)
         node(0, 0f, 1.65f, -12f, 2.6f, 0.15f, 14f)
         node(0, -2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
