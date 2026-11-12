@@ -129,18 +129,19 @@ class MainActivity : ComponentActivity() {
             "door_left_panel", "door_right_panel", "door_status_light"
         ).forEach { addMovingNode(it, doorNodes) }
 
-        listOf(
-            "hangar_floor", "hangar_ceiling", "hangar_wall_left", "hangar_wall_right"
-        ).forEach { addMovingNode(it, hangarNodes) }
-        for (i in 0..2) {
-            addMovingNode("hangar_pillar_left_$i", hangarNodes)
-            addMovingNode("hangar_pillar_right_$i", hangarNodes)
-        }
         for (i in 0..3) {
-            addMovingNode("hangar_light_left_$i", hangarNodes)
-            addMovingNode("hangar_light_right_$i", hangarNodes)
-            addMovingNode("hangar_floor_light_left_$i", hangarNodes)
-            addMovingNode("hangar_floor_light_right_$i", hangarNodes)
+            listOf(
+                "hangar_floor_$i", "hangar_ceiling_$i",
+                "hangar_wall_left_$i", "hangar_wall_right_$i",
+                "hangar_pillar_left_$i", "hangar_pillar_right_$i",
+                "hangar_light_left_$i", "hangar_light_right_$i",
+                "hangar_floor_light_left_$i", "hangar_floor_light_right_$i",
+                "hangar_arch_left_$i", "hangar_arch_right_$i", "hangar_arch_top_$i",
+                "hangar_platform_left_$i", "hangar_platform_right_$i",
+                "hangar_platform_edge_left_$i", "hangar_platform_edge_right_$i",
+                "hangar_rail_left_$i", "hangar_rail_right_$i",
+                "hangar_equipment_left_$i", "hangar_equipment_right_$i"
+            ).forEach { addMovingNode(it, hangarNodes) }
         }
 
         animationStartNanos = 0L
