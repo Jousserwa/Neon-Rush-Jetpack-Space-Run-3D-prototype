@@ -109,7 +109,7 @@ internal object CorridorGltf {
         pilotPart(alloy, 0.205f, -2.39f, -3.31f, 0.18f, 0.16f, 0.30f, "pilot_right_boot")
         pilotPart(magenta, -0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_left_boot_sole")
         pilotPart(magenta, 0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_right_boot_sole")
-        nodes[0] = """{"name":"pilot_root","children":[${(1 until nodes.size).joinToString(",") }]}"""
+        nodes[0] = """{"name":"pilot_root","children":[${(1 until environmentStartIndex).joinToString(",") }]}"""
         val environmentStartIndex = nodes.size
 
         for (i in 0..3) {
