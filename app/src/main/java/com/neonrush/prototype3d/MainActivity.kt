@@ -6,6 +6,7 @@ import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import com.google.android.filament.View
 import com.google.android.filament.utils.ModelViewer
+import com.google.android.filament.utils.Manipulator
 import com.google.android.filament.utils.Utils
 
 class MainActivity : ComponentActivity() {
@@ -33,7 +34,14 @@ class MainActivity : ComponentActivity() {
         surfaceView = SurfaceView(this)
         setContentView(surfaceView)
 
-        modelViewer = ModelViewer(surfaceView)
+        val gameplayCamera = Manipulator.Builder()
+            .targetPosition(0f, 0.15f, -7f)
+            .orbitHomePosition(0f, 1.15f, 2.8f)
+            .upVector(0f, 1f, 0f)
+            .fovDegrees(48f)
+            .farPlane(100f)
+            .build(Manipulator.Mode.ORBIT)
+        modelViewer = ModelViewer(surfaceView, manipulator = gameplayCamera)
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
             hdrColorBuffer = View.QualityLevel.MEDIUM
         }
@@ -41,10 +49,7 @@ class MainActivity : ComponentActivity() {
         modelViewer.view.bloomOptions = modelViewer.view.bloomOptions.apply { enabled = true }
 
         modelViewer.loadModelGltf(CorridorGltf.create()) { uri -> CorridorGltf.resource(uri) }
-        surfaceView.setOnTouchListener { _, event ->
-            modelViewer.onTouchEvent(event)
-            true
-        }
+        // Fixed third-person framing for this milestone; gameplay input comes later.
     }
 
     override fun onResume() {
