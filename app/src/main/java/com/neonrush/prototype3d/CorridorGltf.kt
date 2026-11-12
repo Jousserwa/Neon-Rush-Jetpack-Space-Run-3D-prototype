@@ -67,10 +67,10 @@ internal object CorridorGltf {
         node(1, 0f, 1.82f, -36f, 0.72f, 0.045f, 0.06f, "door_status_light")
 
         // Connected hangar beyond the doorway: wider and taller than the corridor.
-        node(0, 0f, -2.2f, -47f, 8.5f, 0.15f, 14f, "hangar_floor")
-        node(0, 0f, 4.8f, -47f, 8.5f, 0.15f, 14f, "hangar_ceiling")
-        node(0, -8.5f, 1.3f, -47f, 0.15f, 3.5f, 14f, "hangar_wall_left")
-        node(0, 8.5f, 1.3f, -47f, 0.15f, 3.5f, 14f, "hangar_wall_right")
+        node(0, 0f, -2.2f, -43f, 8.5f, 0.15f, 14f, "hangar_floor")
+        node(0, 0f, 4.8f, -43f, 8.5f, 0.15f, 14f, "hangar_ceiling")
+        node(0, -8.5f, 1.3f, -43f, 0.15f, 3.5f, 14f, "hangar_wall_left")
+        node(0, 8.5f, 1.3f, -43f, 0.15f, 3.5f, 14f, "hangar_wall_right")
         for (i in 0..2) {
             val z = -39f - i * 8f
             node(0, -7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_left_$i")
