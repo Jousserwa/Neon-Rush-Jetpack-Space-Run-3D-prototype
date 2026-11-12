@@ -42,7 +42,6 @@ internal object CorridorGltf {
         node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_left_pack_light")
         node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_right_pack_light")
 
-        // Four repeating 9-metre environment sections form a continuous corridor.
         for (i in 0..3) {
             val z = -4.5f - i * 9f
             node(0, 0f, -2.2f, z, 2.6f, 0.15f, 9f, "env_floor_$i")
@@ -50,7 +49,6 @@ internal object CorridorGltf {
             node(0, -2.6f, 0f, z, 0.15f, 2.4f, 9f, "env_wall_left_$i")
             node(0, 2.6f, 0f, z, 0.15f, 2.4f, 9f, "env_wall_right_$i")
         }
-        node(0, 0f, 0f, -42f, 2.6f, 2.4f, 0.15f, "far_end_wall")
         for (i in 0..6) {
             val z = -1.5f - i * 3.7f
             node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_left_$i")
@@ -59,6 +57,32 @@ internal object CorridorGltf {
             node(1, 1.8f, -2.08f, z, 0.75f, 0.025f, 0.035f, "floor_right_$i")
         }
         for (i in 0..5) node(2, 0f, 2.08f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f, "ceiling_marker_$i")
+
+        // Security door: the two centre panels slide apart as the pilot approaches.
+        node(0, -1.78f, 0f, -36f, 0.22f, 1.65f, 0.28f, "door_frame_left")
+        node(0, 1.78f, 0f, -36f, 0.22f, 1.65f, 0.28f, "door_frame_right")
+        node(0, 0f, 1.62f, -36f, 3.8f, 0.22f, 0.28f, "door_frame_top")
+        node(2, -0.55f, 0f, -36f, 0.62f, 1.42f, 0.16f, "door_left_panel")
+        node(2, 0.55f, 0f, -36f, 0.62f, 1.42f, 0.16f, "door_right_panel")
+        node(1, 0f, 1.82f, -36f, 0.72f, 0.045f, 0.06f, "door_status_light")
+
+        // Connected hangar beyond the doorway: wider and taller than the corridor.
+        node(0, 0f, -2.2f, -47f, 8.5f, 0.15f, 14f, "hangar_floor")
+        node(0, 0f, 4.8f, -47f, 8.5f, 0.15f, 14f, "hangar_ceiling")
+        node(0, -8.5f, 1.3f, -47f, 0.15f, 3.5f, 14f, "hangar_wall_left")
+        node(0, 8.5f, 1.3f, -47f, 0.15f, 3.5f, 14f, "hangar_wall_right")
+        for (i in 0..2) {
+            val z = -39f - i * 8f
+            node(0, -7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_left_$i")
+            node(0, 7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_right_$i")
+        }
+        for (i in 0..3) {
+            val z = -39f - i * 6.5f
+            node(1, -4.6f, 4.68f, z, 1.7f, 0.025f, 0.07f, "hangar_light_left_$i")
+            node(2, 4.6f, 4.68f, z, 1.7f, 0.025f, 0.07f, "hangar_light_right_$i")
+            node(1, -4.2f, -2.08f, z, 1.4f, 0.025f, 0.045f, "hangar_floor_light_left_$i")
+            node(1, 4.2f, -2.08f, z, 1.4f, 0.025f, 0.045f, "hangar_floor_light_right_$i")
+        }
 
         val json = """
           {
