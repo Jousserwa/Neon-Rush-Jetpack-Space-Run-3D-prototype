@@ -66,18 +66,16 @@ internal object CorridorGltf {
         node(2, 0.55f, 0f, -36f, 0.62f, 1.42f, 0.16f, "door_right_panel")
         node(1, 0f, 1.82f, -36f, 0.72f, 0.045f, 0.06f, "door_status_light")
 
-        // Connected hangar beyond the doorway: wider and taller than the corridor.
-        node(0, 0f, -2.2f, -43f, 8.5f, 0.15f, 14f, "hangar_floor")
-        node(0, 0f, 4.8f, -43f, 8.5f, 0.15f, 14f, "hangar_ceiling")
-        node(0, -8.5f, 1.3f, -43f, 0.15f, 3.5f, 14f, "hangar_wall_left")
-        node(0, 8.5f, 1.3f, -43f, 0.15f, 3.5f, 14f, "hangar_wall_right")
-        for (i in 0..2) {
-            val z = -39f - i * 8f
+        // Four repeating wide hangar bays form a continuous room beyond the doorway.
+        // Each bay is 9 metres long; the runtime recycles them as the pilot advances.
+        for (i in 0..3) {
+            val z = -40.5f - i * 9f
+            node(0, 0f, -2.2f, z, 8.5f, 0.15f, 9f, "hangar_floor_$i")
+            node(0, 0f, 4.8f, z, 8.5f, 0.15f, 9f, "hangar_ceiling_$i")
+            node(0, -8.5f, 1.3f, z, 0.15f, 3.5f, 9f, "hangar_wall_left_$i")
+            node(0, 8.5f, 1.3f, z, 0.15f, 3.5f, 9f, "hangar_wall_right_$i")
             node(0, -7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_left_$i")
             node(0, 7.2f, 0.65f, z, 0.42f, 2.85f, 0.48f, "hangar_pillar_right_$i")
-        }
-        for (i in 0..3) {
-            val z = -39f - i * 6.5f
             node(1, -4.6f, 4.68f, z, 1.7f, 0.025f, 0.07f, "hangar_light_left_$i")
             node(2, 4.6f, 4.68f, z, 1.7f, 0.025f, 0.07f, "hangar_light_right_$i")
             node(1, -4.2f, -2.08f, z, 1.4f, 0.025f, 0.045f, "hangar_floor_light_left_$i")
