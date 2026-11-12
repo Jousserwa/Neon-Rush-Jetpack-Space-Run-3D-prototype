@@ -24,10 +24,21 @@ internal object CorridorGltf {
             val phi = Math.PI.toFloat() * ring / rings
             for (segment in 0..segments) {
                 val theta = (2.0 * Math.PI * segment / segments).toFloat()
-                val x = kotlin.math.sin(phi) * kotlin.math.cos(theta)
-                val y = kotlin.math.cos(phi)
-                val z = kotlin.math.sin(phi) * kotlin.math.sin(theta)
-                sphereVertices.addAll(listOf(x, y, z, x, y, z))
+                // Superellipsoid profile: broad, softly bevelled armour volumes
+                // instead of balloon-like spheres. Each named body part is scaled
+                // independently, preserving the separate equipment attachment points.
+                fun bevel(value: Float): Float =
+                    kotlin.math.sign(value) * kotlin.math.abs(value).toFloat().let {
+                        it.pow(0.62f)
+                    }
+                val rawX = kotlin.math.sin(phi) * kotlin.math.cos(theta)
+                val rawY = kotlin.math.cos(phi)
+                val rawZ = kotlin.math.sin(phi) * kotlin.math.sin(theta)
+                val x = bevel(rawX)
+                val y = bevel(rawY)
+                val z = bevel(rawZ)
+                val normalLength = kotlin.math.sqrt(x * x + y * y + z * z).coerceAtLeast(0.0001f)
+                sphereVertices.addAll(listOf(x, y, z, x / normalLength, y / normalLength, z / normalLength))
             }
         }
         for (ring in 0 until rings) {
