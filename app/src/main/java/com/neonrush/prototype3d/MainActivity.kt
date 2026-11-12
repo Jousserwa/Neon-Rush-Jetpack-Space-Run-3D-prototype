@@ -7,6 +7,8 @@ import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import com.google.android.filament.View
 import com.google.android.filament.Skybox
+import com.google.android.filament.LightManager
+import com.google.android.filament.EntityManager
 import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Manipulator
 import com.google.android.filament.utils.Utils
@@ -89,6 +91,17 @@ class MainActivity : ComponentActivity() {
         modelViewer.scene.skybox = Skybox.Builder()
             .color(0.16f, 0.29f, 0.19f, 1.0f)
             .build(modelViewer.engine)
+
+        // Soft directional daylight makes PBR foliage, bark, rocks and pilot armour visible.
+        val sunlight = EntityManager.get().create()
+        LightManager.Builder(LightManager.Type.DIRECTIONAL)
+            .color(0.88f, 0.96f, 0.82f)
+            .intensity(70000.0f)
+            .direction(-0.35f, -1.0f, -0.28f)
+            .castShadows(false)
+            .build(modelViewer.engine, sunlight)
+        modelViewer.scene.addEntity(sunlight)
+
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
             hdrColorBuffer = View.QualityLevel.MEDIUM
         }
