@@ -99,6 +99,30 @@ internal object CorridorGltf {
             node(0, 6.15f, -0.55f, z + 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_right_$i")
         }
 
+
+        // Four repeating outdoor forest sections begin beyond the hangar.
+        // Each section is 9 metres long and is streamed by the gameplay loop.
+        for (i in 0..3) {
+            val z = -130.5f - i * 9f
+            node(4, 0f, -2.2f, z, 25f, 0.16f, 9f, "forest_ground_$i")
+            node(0, -11.5f, -0.15f, z, 0.55f, 2.1f, 0.65f, "forest_trunk_far_left_$i")
+            node(0, 11.5f, -0.15f, z - 2.2f, 0.55f, 2.1f, 0.65f, "forest_trunk_far_right_$i")
+            node(3, -11.5f, 1.45f, z, 2.8f, 2.4f, 2.7f, "forest_canopy_far_left_$i")
+            node(3, 11.5f, 1.45f, z - 2.2f, 2.8f, 2.4f, 2.7f, "forest_canopy_far_right_$i")
+            node(0, -6.8f, -0.45f, z - 3.1f, 0.42f, 1.7f, 0.48f, "forest_trunk_left_$i")
+            node(0, 7.2f, -0.45f, z + 2.7f, 0.42f, 1.7f, 0.48f, "forest_trunk_right_$i")
+            node(3, -6.8f, 0.85f, z - 3.1f, 2.25f, 2.0f, 2.15f, "forest_canopy_left_$i")
+            node(3, 7.2f, 0.85f, z + 2.7f, 2.25f, 2.0f, 2.15f, "forest_canopy_right_$i")
+            node(3, -9.0f, 2.1f, z - 3.1f, 1.55f, 1.35f, 1.65f, "forest_crown_left_$i")
+            node(3, 9.0f, 2.1f, z + 2.7f, 1.55f, 1.35f, 1.65f, "forest_crown_right_$i")
+            node(0, -3.8f, -1.86f, z + 1.4f, 1.0f, 0.45f, 0.8f, "forest_rock_left_$i")
+            node(0, 4.0f, -1.88f, z - 2.0f, 1.25f, 0.38f, 0.95f, "forest_rock_right_$i")
+            node(1, -4.8f, -1.72f, z - 3.0f, 0.08f, 0.045f, 0.7f, "forest_glow_left_$i")
+            node(1, 4.8f, -1.72f, z + 2.8f, 0.08f, 0.045f, 0.7f, "forest_glow_right_$i")
+            node(2, -1.5f, -1.73f, z, 0.045f, 0.035f, 0.55f, "forest_path_marker_left_$i")
+            node(2, 1.5f, -1.73f, z, 0.045f, 0.035f, 0.55f, "forest_path_marker_right_$i")
+        }
+
         val json = """
           {
             "asset":{"version":"2.0","generator":"Neon Rush 3D Prototype"},
@@ -108,12 +132,16 @@ internal object CorridorGltf {
             "meshes":[
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0}]},
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":1}]},
-              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":2}]}
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":2}]},
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":3}]},
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":4}]}
             ],
             "materials":[
               {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.065,0.12,1],"metallicFactor":0.72,"roughnessFactor":0.38}},
               {"name":"Cyan energy","emissiveFactor":[0.02,0.75,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.02,0.35,0.48,1],"metallicFactor":0.25,"roughnessFactor":0.25}},
-              {"name":"Magenta energy","emissiveFactor":[0.9,0.025,0.35],"pbrMetallicRoughness":{"baseColorFactor":[0.4,0.015,0.12,1],"metallicFactor":0.2,"roughnessFactor":0.3}}
+              {"name":"Magenta energy","emissiveFactor":[0.9,0.025,0.35],"pbrMetallicRoughness":{"baseColorFactor":[0.4,0.015,0.12,1],"metallicFactor":0.2,"roughnessFactor":0.3}},
+              {"name":"Forest canopy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.22,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.92}},
+              {"name":"Forest earth","pbrMetallicRoughness":{"baseColorFactor":[0.075,0.09,0.065,1],"metallicFactor":0.0,"roughnessFactor":0.98}}
             ],
             "buffers":[{"uri":"$dataUri","byteLength":${bytes.size}}],
             "bufferViews":[
