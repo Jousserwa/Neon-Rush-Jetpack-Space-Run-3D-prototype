@@ -2,6 +2,7 @@ package com.neonrush.prototype3d
 
 import android.os.Bundle
 import android.view.Choreographer
+import android.view.MotionEvent
 import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import com.google.android.filament.View
@@ -25,6 +26,10 @@ class MainActivity : ComponentActivity() {
     private var pilotBaseX = 0f
     private var pilotBaseY = 0f
     private var pilotBaseZ = 0f
+    private var desiredPilotX = 0f
+    private var desiredPilotY = 0f
+    private var currentPilotX = 0f
+    private var currentPilotY = 0f
     private val movingEnvironment = mutableListOf<MovingNode>()
 
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -44,6 +49,23 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.rgb(5, 8, 18)
         surfaceView = SurfaceView(this)
         setContentView(surfaceView)
+        // Drag anywhere on the screen to steer. Horizontal and vertical finger
+        // position map to the pilot's movement area inside the corridor.
+        surfaceView.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    val width = view.width.coerceAtLeast(1).toFloat()
+                    val height = view.height.coerceAtLeast(1).toFloat()
+                    val nx = (event.x / width - 0.5f) * 2f
+                    val ny = (0.5f - event.y / height) * 2f
+                    desiredPilotX = (nx * 1.45f).coerceIn(-1.45f, 1.45f)
+                    desiredPilotY = (ny * 0.78f).coerceIn(-0.78f, 0.78f)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> true
+                else -> true
+            }
+        }
 
         val gameplayCamera = Manipulator.Builder()
             .targetPosition(0f, 0.15f, -7f)
@@ -75,6 +97,10 @@ class MainActivity : ComponentActivity() {
         pilotBaseX = pilotTransform[12]
         pilotBaseY = pilotTransform[13]
         pilotBaseZ = pilotTransform[14]
+        currentPilotX = pilotBaseX
+        currentPilotY = pilotBaseY
+        desiredPilotX = 0f
+        desiredPilotY = 0f
 
         for (i in 0..3) {
             addMovingNode("env_floor_$i")
@@ -109,11 +135,14 @@ class MainActivity : ComponentActivity() {
         val seconds = ((frameTimeNanos - animationStartNanos) / 1_000_000_000.0).toFloat()
         val manager = modelViewer.engine.transformManager
 
-        // Keep the pilot near the centre; the world motion sells forward flight.
+        // Smoothly follow finger input so the pilot can steer in four directions.
         val currentPilotInstance = manager.getInstance(pilotEntity)
         if (currentPilotInstance != 0) {
-            pilotTransform[12] = pilotBaseX + sin(seconds * 0.55f) * 0.12f
-            pilotTransform[13] = pilotBaseY + sin(seconds * 1.35f) * 0.07f
+            val smoothing = 1f - kotlin.math.exp(-seconds.coerceAtMost(0.05f) * 10f)
+            currentPilotX += (pilotBaseX + desiredPilotX - currentPilotX) * smoothing
+            currentPilotY += (pilotBaseY + desiredPilotY - currentPilotY) * smoothing
+            pilotTransform[12] = currentPilotX
+            pilotTransform[13] = currentPilotY + sin(seconds * 1.35f) * 0.025f
             pilotTransform[14] = pilotBaseZ
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
