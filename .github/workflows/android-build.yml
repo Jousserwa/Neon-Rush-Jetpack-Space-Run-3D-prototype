@@ -34,7 +34,8 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Prepare persistent prototype signing key
+      - name: Prepare persistent prototype signing key (optional)
+        id: signing
         env:
           NR_KEYSTORE_BASE64: ${{ secrets.NR_KEYSTORE_BASE64 }}
           NR_KEYSTORE_PASSWORD: ${{ secrets.NR_KEYSTORE_PASSWORD }}
@@ -42,13 +43,23 @@ jobs:
           NR_KEY_PASSWORD: ${{ secrets.NR_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -z "$NR_KEYSTORE_BASE64" ] || [ -z "$NR_KEYSTORE_PASSWORD" ] || [ -z "$NR_KEY_ALIAS" ] || [ -z "$NR_KEY_PASSWORD" ]; then
-            echo "::error::Persistent signing is not configured. Add the four NR_* repository Actions secrets described in README.md."
+          values=("$NR_KEYSTORE_BASE64" "$NR_KEYSTORE_PASSWORD" "$NR_KEY_ALIAS" "$NR_KEY_PASSWORD")
+          present=0
+          for value in "${values[@]}"; do
+            if [ -n "$value" ]; then present=$((present + 1)); fi
+          done
+          if [ "$present" -eq 0 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No persistent signing secrets found. Building with the temporary GitHub Actions debug key; uninstall the previous prototype before installing this APK."
+          elif [ "$present" -ne 4 ]; then
+            echo "::error::Signing secrets are incomplete. Add all four NR_* secrets or remove them all."
             exit 1
+          else
+            echo "$NR_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neon-rush-prototype.jks"
+            test -s "$RUNNER_TEMP/neon-rush-prototype.jks"
+            echo "NR_KEYSTORE_PATH=$RUNNER_TEMP/neon-rush-prototype.jks" >> "$GITHUB_ENV"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-          echo "$NR_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neon-rush-prototype.jks"
-          test -s "$RUNNER_TEMP/neon-rush-prototype.jks"
-          echo "NR_KEYSTORE_PATH=$RUNNER_TEMP/neon-rush-prototype.jks" >> "$GITHUB_ENV"
 
       - name: Build debug APK
         env:
