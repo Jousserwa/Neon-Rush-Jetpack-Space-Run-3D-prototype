@@ -184,37 +184,40 @@ class MainActivity : ComponentActivity() {
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
 
-        // The corridor streams toward the pilot until the door-to-hangar transition finishes.
-        val travel = (seconds * 5f).coerceAtMost(36f)
+        // Continuous forward travel. The door opens as the pilot approaches,
+        // then the corridor gives way to a repeating sequence of hangar bays.
+        val travel = seconds * 5f
         val openProgress = ((seconds - 3.8f) / 1.8f).coerceIn(0f, 1f)
         val easedOpen = openProgress * openProgress * (3f - 2f * openProgress)
+        val hasEnteredHangar = seconds >= 7.2f
 
-        if (seconds < 7.2f) {
+        if (!hasEnteredHangar) {
             corridorNodes.forEach { node ->
-                var z = node.baseZ + seconds * 5f
-                if (z > 2f) z -= 36f
+                var z = node.baseZ + travel
+                while (z > 2f) z -= 36f
                 applyNodeTransform(node, node.baseX, z)
             }
-            doorNodes.forEach { node ->
-                var x = node.baseX
-                if (node.name == "door_left_panel") x -= 1.35f * easedOpen
-                if (node.name == "door_right_panel") x += 1.35f * easedOpen
-                applyNodeTransform(node, x, node.baseZ + travel)
+        } else {
+            // Keep the corridor behind the player after entering the hangar.
+            corridorNodes.forEach { node ->
+                applyNodeTransform(node, node.baseX, node.baseZ - 120f)
             }
-            hangarNodes.forEach { node ->
-                applyNodeTransform(node, node.baseX, node.baseZ + travel)
-            }
-        } else if (!transitionComplete) {
-            // Clear the corridor behind the pilot and settle the hangar around the player.
-            corridorNodes.forEach { node -> applyNodeTransform(node, node.baseX, node.baseZ - 100f) }
-            doorNodes.forEach { node ->
-                var x = node.baseX
-                if (node.name == "door_left_panel") x -= 1.35f
-                if (node.name == "door_right_panel") x += 1.35f
-                applyNodeTransform(node, x, node.baseZ + 36f)
-            }
-            hangarNodes.forEach { node -> applyNodeTransform(node, node.baseX, node.baseZ + 36f) }
-            transitionComplete = true
+        }
+
+        // Door panels slide apart, then the open doorway travels behind the pilot.
+        doorNodes.forEach { node ->
+            var x = node.baseX
+            if (node.name == "door_left_panel") x -= 1.35f * easedOpen
+            if (node.name == "door_right_panel") x += 1.35f * easedOpen
+            applyNodeTransform(node, x, node.baseZ + travel)
+        }
+
+        // Hangar bays continuously stream past the pilot and recycle ahead.
+        // This keeps the hangar playable instead of freezing at the end of the transition.
+        hangarNodes.forEach { node ->
+            var z = node.baseZ + travel
+            while (z > 5f) z -= 36f
+            applyNodeTransform(node, node.baseX, z)
         }
     }
 
