@@ -9,7 +9,6 @@ import com.google.android.filament.View
 import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Manipulator
 import com.google.android.filament.utils.Utils
-import kotlin.math.sin
 
 class MainActivity : ComponentActivity() {
     companion object { init { Utils.init() } }
@@ -59,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     val nx = (event.x / width - 0.5f) * 2f
                     val ny = (0.5f - event.y / height) * 2f
                     desiredPilotX = (nx * 1.45f).coerceIn(-1.45f, 1.45f)
-                    desiredPilotY = (ny * 0.65f).coerceIn(-0.65f, 0.65f)
+                    desiredPilotY = (ny * 1.05f).coerceIn(-1.05f, 1.05f)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> true
@@ -142,7 +141,7 @@ class MainActivity : ComponentActivity() {
             currentPilotX += (pilotBaseX + desiredPilotX - currentPilotX) * smoothing
             currentPilotY += (pilotBaseY + desiredPilotY - currentPilotY) * smoothing
             pilotTransform[12] = currentPilotX
-            pilotTransform[13] = currentPilotY + sin(seconds * 1.35f) * 0.025f
+            pilotTransform[13] = currentPilotY
             pilotTransform[14] = pilotBaseZ
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
