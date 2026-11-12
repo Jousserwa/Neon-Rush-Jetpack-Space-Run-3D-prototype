@@ -31,6 +31,8 @@ class MainActivity : ComponentActivity() {
     private var animationNodesReady = false
     private var pilotEntity = 0
     private var pilotTransform = FloatArray(16)
+    private var pilotHeadEntity = 0
+    private var pilotHeadTransform = FloatArray(16)
     private var pilotBaseX = 0f
     private var pilotBaseY = 0f
     private var pilotBaseZ = 0f
@@ -129,6 +131,13 @@ class MainActivity : ComponentActivity() {
         desiredPilotX = 0f
         desiredPilotY = 0f
 
+        pilotHeadEntity = asset.getFirstEntityByName("pilot_head_root")
+        val headInstance = manager.getInstance(pilotHeadEntity)
+        if (headInstance != 0) {
+            pilotHeadTransform = FloatArray(16)
+            manager.getTransform(headInstance, pilotHeadTransform)
+        }
+
         for (i in 0..3) {
             addMovingNode("env_floor_$i", corridorNodes)
             addMovingNode("env_ceiling_$i", corridorNodes)
@@ -222,6 +231,20 @@ class MainActivity : ComponentActivity() {
             pilotTransform[13] = currentPilotY
             pilotTransform[14] = pilotBaseZ
             manager.setTransform(currentPilotInstance, pilotTransform)
+        }
+
+        // Subtle three-quarter glance, with tiny idle drift and steering response.
+        val headInstance = manager.getInstance(pilotHeadEntity)
+        if (headInstance != 0 && pilotHeadTransform.size == 16) {
+            val yaw = 0.22f + (currentPilotX - pilotBaseX) * 0.035f +
+                kotlin.math.sin(seconds * 1.15f) * 0.012f
+            val c = kotlin.math.cos(yaw)
+            val s = kotlin.math.sin(yaw)
+            pilotHeadTransform[0] = c
+            pilotHeadTransform[2] = -s
+            pilotHeadTransform[8] = s
+            pilotHeadTransform[10] = c
+            manager.setTransform(headInstance, pilotHeadTransform)
         }
 
         // Continuous forward travel. The door opens as the pilot approaches,
