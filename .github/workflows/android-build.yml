@@ -27,7 +27,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # The legacy 'tools' SDK package has been removed.
           packages: 'platform-tools'
 
       - name: Set up Gradle
@@ -35,7 +34,27 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Prepare persistent prototype signing key
+        env:
+          NR_KEYSTORE_BASE64: ${{ secrets.NR_KEYSTORE_BASE64 }}
+          NR_KEYSTORE_PASSWORD: ${{ secrets.NR_KEYSTORE_PASSWORD }}
+          NR_KEY_ALIAS: ${{ secrets.NR_KEY_ALIAS }}
+          NR_KEY_PASSWORD: ${{ secrets.NR_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$NR_KEYSTORE_BASE64" ] || [ -z "$NR_KEYSTORE_PASSWORD" ] || [ -z "$NR_KEY_ALIAS" ] || [ -z "$NR_KEY_PASSWORD" ]; then
+            echo "::error::Persistent signing is not configured. Add the four NR_* repository Actions secrets described in README.md."
+            exit 1
+          fi
+          echo "$NR_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/neon-rush-prototype.jks"
+          test -s "$RUNNER_TEMP/neon-rush-prototype.jks"
+          echo "NR_KEYSTORE_PATH=$RUNNER_TEMP/neon-rush-prototype.jks" >> "$GITHUB_ENV"
+
       - name: Build debug APK
+        env:
+          NR_KEYSTORE_PASSWORD: ${{ secrets.NR_KEYSTORE_PASSWORD }}
+          NR_KEY_ALIAS: ${{ secrets.NR_KEY_ALIAS }}
+          NR_KEY_PASSWORD: ${{ secrets.NR_KEY_PASSWORD }}
         run: gradle :app:assembleDebug --stacktrace
 
       - name: Upload debug APK
