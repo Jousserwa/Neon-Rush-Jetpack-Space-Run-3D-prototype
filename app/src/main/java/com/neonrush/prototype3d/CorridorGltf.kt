@@ -230,7 +230,10 @@ internal object CorridorGltf {
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":4}]},
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":5}]},
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":6}]},
-              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]}
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":8}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":9}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":10}]}
             ],
             "materials":[
               {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.28,0.34,0.38,1],"metallicFactor":0.22,"roughnessFactor":0.62}},
@@ -240,17 +243,25 @@ internal object CorridorGltf {
               {"name":"Forest earth","pbrMetallicRoughness":{"baseColorFactor":[0.075,0.09,0.065,1],"metallicFactor":0.0,"roughnessFactor":0.98}},
               {"name":"Bark and roots","pbrMetallicRoughness":{"baseColorFactor":[0.30,0.16,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.96}},
               {"name":"Forest undergrowth","pbrMetallicRoughness":{"baseColorFactor":[0.045,0.16,0.045,1],"metallicFactor":0.0,"roughnessFactor":1.0}},
-              {"name":"Weathered stone","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.22,0.20,1],"metallicFactor":0.0,"roughnessFactor":0.94}}
+              {"name":"Weathered stone","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.22,0.20,1],"metallicFactor":0.0,"roughnessFactor":0.94}},
+              {"name":"Pilot graphite armour","pbrMetallicRoughness":{"baseColorFactor":[0.105,0.12,0.19,1],"metallicFactor":0.48,"roughnessFactor":0.34}},
+              {"name":"Pilot cyan visor and energy","emissiveFactor":[0.02,0.72,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.015,0.38,0.52,1],"metallicFactor":0.3,"roughnessFactor":0.19}},
+              {"name":"Pilot magenta armour accents","emissiveFactor":[0.75,0.015,0.42],"pbrMetallicRoughness":{"baseColorFactor":[0.48,0.018,0.22,1],"metallicFactor":0.32,"roughnessFactor":0.24}}
             ],
             "buffers":[{"uri":"$dataUri","byteLength":${bytes.size}}],
             "bufferViews":[
               {"buffer":0,"byteOffset":0,"byteLength":576,"byteStride":24,"target":34962},
-              {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963}
+              {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963},
+              {"buffer":0,"byteOffset":648,"byteLength":10200,"byteStride":24,"target":34962},
+              {"buffer":0,"byteOffset":10848,"byteLength":4608,"target":34963}
             ],
             "accessors":[
               {"bufferView":0,"byteOffset":0,"componentType":5126,"count":24,"type":"VEC3","min":[-0.5,-0.5,-0.5],"max":[0.5,0.5,0.5]},
               {"bufferView":0,"byteOffset":12,"componentType":5126,"count":24,"type":"VEC3"},
-              {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"}
+              {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"},
+              {"bufferView":2,"byteOffset":0,"componentType":5126,"count":425,"type":"VEC3","min":[-1,-1,-1],"max":[1,1,1]},
+              {"bufferView":2,"byteOffset":12,"componentType":5126,"count":425,"type":"VEC3"},
+              {"bufferView":3,"byteOffset":0,"componentType":5123,"count":2304,"type":"SCALAR"}
             ]
           }
         """.trimIndent()
