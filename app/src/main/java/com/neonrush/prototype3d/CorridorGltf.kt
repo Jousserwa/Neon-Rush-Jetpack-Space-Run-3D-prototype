@@ -45,20 +45,20 @@ internal object CorridorGltf {
         // Four repeating 9-metre environment sections form a continuous corridor.
         for (i in 0..3) {
             val z = -4.5f - i * 9f
-            node(0, 0f, -1.65f, z, 2.6f, 0.15f, 9f, "env_floor_$i")
-            node(0, 0f, 1.65f, z, 2.6f, 0.15f, 9f, "env_ceiling_$i")
-            node(0, -2.6f, 0f, z, 0.15f, 1.8f, 9f, "env_wall_left_$i")
-            node(0, 2.6f, 0f, z, 0.15f, 1.8f, 9f, "env_wall_right_$i")
+            node(0, 0f, -2.2f, z, 2.6f, 0.15f, 9f, "env_floor_$i")
+            node(0, 0f, 2.2f, z, 2.6f, 0.15f, 9f, "env_ceiling_$i")
+            node(0, -2.6f, 0f, z, 0.15f, 2.4f, 9f, "env_wall_left_$i")
+            node(0, 2.6f, 0f, z, 0.15f, 2.4f, 9f, "env_wall_right_$i")
         }
-        node(0, 0f, 0f, -42f, 2.6f, 1.8f, 0.15f, "far_end_wall")
+        node(0, 0f, 0f, -42f, 2.6f, 2.4f, 0.15f, "far_end_wall")
         for (i in 0..6) {
             val z = -1.5f - i * 3.7f
             node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_left_$i")
             node(1, 2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f, "guide_right_$i")
-            node(1, -1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f, "floor_left_$i")
-            node(1, 1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f, "floor_right_$i")
+            node(1, -1.8f, -2.08f, z, 0.75f, 0.025f, 0.035f, "floor_left_$i")
+            node(1, 1.8f, -2.08f, z, 0.75f, 0.025f, 0.035f, "floor_right_$i")
         }
-        for (i in 0..5) node(2, 0f, 1.54f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f, "ceiling_marker_$i")
+        for (i in 0..5) node(2, 0f, 2.08f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f, "ceiling_marker_$i")
 
         val json = """
           {
