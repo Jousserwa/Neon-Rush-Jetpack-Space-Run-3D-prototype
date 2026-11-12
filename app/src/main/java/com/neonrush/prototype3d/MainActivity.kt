@@ -13,7 +13,13 @@ import com.google.android.filament.utils.Utils
 class MainActivity : ComponentActivity() {
     companion object { init { Utils.init() } }
 
-    private data class MovingNode(val entity: Int, val transform: FloatArray, val baseZ: Float)
+    private data class MovingNode(
+        val entity: Int,
+        val transform: FloatArray,
+        val baseX: Float,
+        val baseZ: Float,
+        val name: String
+    )
 
     private lateinit var surfaceView: SurfaceView
     private lateinit var modelViewer: ModelViewer
@@ -29,7 +35,10 @@ class MainActivity : ComponentActivity() {
     private var desiredPilotY = 0f
     private var currentPilotX = 0f
     private var currentPilotY = 0f
-    private val movingEnvironment = mutableListOf<MovingNode>()
+    private val corridorNodes = mutableListOf<MovingNode>()
+    private val doorNodes = mutableListOf<MovingNode>()
+    private val hangarNodes = mutableListOf<MovingNode>()
+    private var transitionComplete = false
 
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -48,8 +57,8 @@ class MainActivity : ComponentActivity() {
         window.navigationBarColor = android.graphics.Color.rgb(5, 8, 18)
         surfaceView = SurfaceView(this)
         setContentView(surfaceView)
-        // Drag anywhere on the screen to steer. Horizontal and vertical finger
-        // position map to the pilot's movement area inside the corridor.
+
+        // Drag anywhere to steer the pilot left/right and up/down.
         surfaceView.setOnTouchListener { view, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
@@ -94,7 +103,7 @@ class MainActivity : ComponentActivity() {
         pilotTransform = FloatArray(16)
         manager.getTransform(pilotInstance, pilotTransform)
         pilotBaseX = pilotTransform[12]
-        // Raise the pilot model within the corridor so it has safe clearance both above and below.\n        pilotBaseY = pilotTransform[13] + 0.55f
+        pilotBaseY = pilotTransform[13] + 0.55f
         pilotBaseZ = pilotTransform[14]
         currentPilotX = pilotBaseX
         currentPilotY = pilotBaseY
@@ -102,23 +111,43 @@ class MainActivity : ComponentActivity() {
         desiredPilotY = 0f
 
         for (i in 0..3) {
-            addMovingNode("env_floor_$i")
-            addMovingNode("env_ceiling_$i")
-            addMovingNode("env_wall_left_$i")
-            addMovingNode("env_wall_right_$i")
+            addMovingNode("env_floor_$i", corridorNodes)
+            addMovingNode("env_ceiling_$i", corridorNodes)
+            addMovingNode("env_wall_left_$i", corridorNodes)
+            addMovingNode("env_wall_right_$i", corridorNodes)
         }
         for (i in 0..6) {
-            addMovingNode("guide_left_$i")
-            addMovingNode("guide_right_$i")
-            addMovingNode("floor_left_$i")
-            addMovingNode("floor_right_$i")
+            addMovingNode("guide_left_$i", corridorNodes)
+            addMovingNode("guide_right_$i", corridorNodes)
+            addMovingNode("floor_left_$i", corridorNodes)
+            addMovingNode("floor_right_$i", corridorNodes)
         }
-        for (i in 0..5) addMovingNode("ceiling_marker_$i")
+        for (i in 0..5) addMovingNode("ceiling_marker_$i", corridorNodes)
+
+        listOf(
+            "door_frame_left", "door_frame_right", "door_frame_top",
+            "door_left_panel", "door_right_panel", "door_status_light"
+        ).forEach { addMovingNode(it, doorNodes) }
+
+        listOf(
+            "hangar_floor", "hangar_ceiling", "hangar_wall_left", "hangar_wall_right"
+        ).forEach { addMovingNode(it, hangarNodes) }
+        for (i in 0..2) {
+            addMovingNode("hangar_pillar_left_$i", hangarNodes)
+            addMovingNode("hangar_pillar_right_$i", hangarNodes)
+        }
+        for (i in 0..3) {
+            addMovingNode("hangar_light_left_$i", hangarNodes)
+            addMovingNode("hangar_light_right_$i", hangarNodes)
+            addMovingNode("hangar_floor_light_left_$i", hangarNodes)
+            addMovingNode("hangar_floor_light_right_$i", hangarNodes)
+        }
+
         animationStartNanos = 0L
         animationNodesReady = true
     }
 
-    private fun addMovingNode(name: String) {
+    private fun addMovingNode(name: String, destination: MutableList<MovingNode>) {
         val entity = modelViewer.asset?.getFirstEntityByName(name) ?: 0
         if (entity == 0) return
         val manager = modelViewer.engine.transformManager
@@ -126,7 +155,16 @@ class MainActivity : ComponentActivity() {
         if (instance == 0) return
         val transform = FloatArray(16)
         manager.getTransform(instance, transform)
-        movingEnvironment += MovingNode(entity, transform, transform[14])
+        destination += MovingNode(entity, transform, transform[12], transform[14], name)
+    }
+
+    private fun applyNodeTransform(node: MovingNode, x: Float, z: Float) {
+        val manager = modelViewer.engine.transformManager
+        val instance = manager.getInstance(node.entity)
+        if (instance == 0) return
+        node.transform[12] = x
+        node.transform[14] = z
+        manager.setTransform(instance, node.transform)
     }
 
     private fun animateScene(frameTimeNanos: Long) {
@@ -134,7 +172,7 @@ class MainActivity : ComponentActivity() {
         val seconds = ((frameTimeNanos - animationStartNanos) / 1_000_000_000.0).toFloat()
         val manager = modelViewer.engine.transformManager
 
-        // Smoothly follow finger input so the pilot can steer in four directions.
+        // Smooth four-direction pilot steering.
         val currentPilotInstance = manager.getInstance(pilotEntity)
         if (currentPilotInstance != 0) {
             val smoothing = 1f - kotlin.math.exp(-seconds.coerceAtMost(0.05f) * 10f)
@@ -146,20 +184,37 @@ class MainActivity : ComponentActivity() {
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
 
-        // The complete corridor shell and its luminous details stream toward the camera.
-        // Each environment segment wraps at the far end, keeping four sections in motion.
-        val travel = (seconds * 5.0f) % 36.0f
-        movingEnvironment.forEach { moving ->
-            val instance = manager.getInstance(moving.entity)
-            if (instance != 0) {
-                var z = moving.baseZ + travel
-                if (moving.entity != 0 && moving.baseZ < -30f) {
-                    // Fixed far-end wall is intentionally excluded from the scrolling set.
-                }
+        // The corridor streams toward the pilot until the door-to-hangar transition finishes.
+        val travel = (seconds * 5f).coerceAtMost(36f)
+        val openProgress = ((seconds - 3.8f) / 1.8f).coerceIn(0f, 1f)
+        val easedOpen = openProgress * openProgress * (3f - 2f * openProgress)
+
+        if (seconds < 7.2f) {
+            corridorNodes.forEach { node ->
+                var z = node.baseZ + seconds * 5f
                 if (z > 2f) z -= 36f
-                moving.transform[14] = z
-                manager.setTransform(instance, moving.transform)
+                applyNodeTransform(node, node.baseX, z)
             }
+            doorNodes.forEach { node ->
+                var x = node.baseX
+                if (node.name == "door_left_panel") x -= 1.35f * easedOpen
+                if (node.name == "door_right_panel") x += 1.35f * easedOpen
+                applyNodeTransform(node, x, node.baseZ + travel)
+            }
+            hangarNodes.forEach { node ->
+                applyNodeTransform(node, node.baseX, node.baseZ + travel)
+            }
+        } else if (!transitionComplete) {
+            // Clear the corridor behind the pilot and settle the hangar around the player.
+            corridorNodes.forEach { node -> applyNodeTransform(node, node.baseX, node.baseZ - 100f) }
+            doorNodes.forEach { node ->
+                var x = node.baseX
+                if (node.name == "door_left_panel") x -= 1.35f
+                if (node.name == "door_right_panel") x += 1.35f
+                applyNodeTransform(node, x, node.baseZ + 36f)
+            }
+            hangarNodes.forEach { node -> applyNodeTransform(node, node.baseX, node.baseZ + 36f) }
+            transitionComplete = true
         }
     }
 
