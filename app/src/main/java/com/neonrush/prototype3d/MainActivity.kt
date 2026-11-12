@@ -147,12 +147,18 @@ class MainActivity : ComponentActivity() {
 
         for (i in 0..3) {
             listOf(
-                "forest_ground_$i",
+                "forest_ground_$i", "forest_moss_left_$i", "forest_moss_right_$i",
+                "forest_earth_mound_left_$i", "forest_earth_mound_right_$i",
                 "forest_trunk_far_left_$i", "forest_trunk_far_right_$i",
                 "forest_canopy_far_left_$i", "forest_canopy_far_right_$i",
+                "forest_crown_far_left_$i", "forest_crown_far_right_$i",
                 "forest_trunk_left_$i", "forest_trunk_right_$i",
-                "forest_canopy_left_$i", "forest_canopy_right_$i",
+                "forest_branch_left_$i", "forest_branch_right_$i",
+                "forest_canopy_left_$i", "forest_canopy_left_cluster_$i", "forest_canopy_left_outer_$i",
+                "forest_canopy_right_$i", "forest_canopy_right_cluster_$i", "forest_canopy_right_outer_$i",
                 "forest_crown_left_$i", "forest_crown_right_$i",
+                "forest_shrub_left_$i", "forest_shrub_right_$i",
+                "forest_root_left_$i", "forest_root_right_$i",
                 "forest_rock_left_$i", "forest_rock_right_$i",
                 "forest_glow_left_$i", "forest_glow_right_$i",
                 "forest_path_marker_left_$i", "forest_path_marker_right_$i"
