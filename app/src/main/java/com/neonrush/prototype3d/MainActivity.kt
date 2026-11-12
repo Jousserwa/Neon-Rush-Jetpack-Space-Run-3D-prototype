@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     val nx = (event.x / width - 0.5f) * 2f
                     val ny = (0.5f - event.y / height) * 2f
                     desiredPilotX = (nx * 1.45f).coerceIn(-1.45f, 1.45f)
-                    desiredPilotY = (ny * 0.78f).coerceIn(-0.78f, 0.78f)
+                    desiredPilotY = (ny * 0.65f).coerceIn(-0.65f, 0.65f)
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> true
@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         pilotTransform = FloatArray(16)
         manager.getTransform(pilotInstance, pilotTransform)
         pilotBaseX = pilotTransform[12]
-        pilotBaseY = pilotTransform[13]
+        // Raise the pilot model within the corridor so it has safe clearance both above and below.\n        pilotBaseY = pilotTransform[13] + 0.55f
         pilotBaseZ = pilotTransform[14]
         currentPilotX = pilotBaseX
         currentPilotY = pilotBaseY
