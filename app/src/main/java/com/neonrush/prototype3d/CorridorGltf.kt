@@ -61,12 +61,12 @@ internal object CorridorGltf {
             ],
             "buffers":[{"uri":"$dataUri","byteLength":${bytes.size}}],
             "bufferViews":[
-              {"buffer":0,"byteOffset":0,"byteLength":576,"target":34962},
+              {"buffer":0,"byteOffset":0,"byteLength":576,"byteStride":24,"target":34962},
               {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963}
             ],
             "accessors":[
               {"bufferView":0,"byteOffset":0,"componentType":5126,"count":24,"type":"VEC3","min":[-0.5,-0.5,-0.5],"max":[0.5,0.5,0.5]},
-              {"bufferView":0,"byteOffset":288,"componentType":5126,"count":24,"type":"VEC3"},
+              {"bufferView":0,"byteOffset":12,"componentType":5126,"count":24,"type":"VEC3"},
               {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"}
             ]
           }
