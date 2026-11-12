@@ -1,0 +1,81 @@
+package com.neonrush.prototype3d
+
+import android.util.Base64
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+/** A self-contained glTF corridor: procedural cube geometry, no external assets. */
+internal object CorridorGltf {
+    fun create(): ByteBuffer {
+        val vertices = floatArrayOf(
+            -0.5f,-0.5f,0.5f, 0f,0f,1f, 0.5f,-0.5f,0.5f, 0f,0f,1f, 0.5f,0.5f,0.5f, 0f,0f,1f, -0.5f,0.5f,0.5f, 0f,0f,1f,
+            0.5f,-0.5f,-0.5f, 0f,0f,-1f, -0.5f,-0.5f,-0.5f, 0f,0f,-1f, -0.5f,0.5f,-0.5f, 0f,0f,-1f, 0.5f,0.5f,-0.5f, 0f,0f,-1f,
+            0.5f,-0.5f,0.5f, 1f,0f,0f, 0.5f,-0.5f,-0.5f, 1f,0f,0f, 0.5f,0.5f,-0.5f, 1f,0f,0f, 0.5f,0.5f,0.5f, 1f,0f,0f,
+            -0.5f,-0.5f,-0.5f, -1f,0f,0f, -0.5f,-0.5f,0.5f, -1f,0f,0f, -0.5f,0.5f,0.5f, -1f,0f,0f, -0.5f,0.5f,-0.5f, -1f,0f,0f,
+            -0.5f,0.5f,0.5f, 0f,1f,0f, 0.5f,0.5f,0.5f, 0f,1f,0f, 0.5f,0.5f,-0.5f, 0f,1f,0f, -0.5f,0.5f,-0.5f, 0f,1f,0f,
+            -0.5f,-0.5f,-0.5f, 0f,-1f,0f, 0.5f,-0.5f,-0.5f, 0f,-1f,0f, 0.5f,-0.5f,0.5f, 0f,-1f,0f, -0.5f,-0.5f,0.5f, 0f,-1f,0f
+        )
+        val pattern = intArrayOf(0, 1, 2, 0, 2, 3)
+        val indices = ShortArray(36) { i -> (i / 6 * 4 + pattern[i % 6]).toShort() }
+        val binary = ByteBuffer.allocate(648).order(ByteOrder.LITTLE_ENDIAN)
+        vertices.forEach(binary::putFloat)
+        indices.forEach(binary::putShort)
+        val bytes = ByteArray(binary.position())
+        binary.flip()
+        binary.get(bytes)
+        val dataUri = "data:application/octet-stream;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+        val nodes = mutableListOf<String>()
+        fun node(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float) {
+            nodes += """{"mesh":$mesh,"translation":[$x,$y,$z],"scale":[$sx,$sy,$sz]}"""
+        }
+        node(0, 0f, -1.65f, -12f, 2.6f, 0.15f, 14f)
+        node(0, 0f, 1.65f, -12f, 2.6f, 0.15f, 14f)
+        node(0, -2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
+        node(0, 2.6f, 0f, -12f, 0.15f, 1.8f, 14f)
+        node(0, 0f, 0f, -26f, 2.6f, 1.8f, 0.15f)
+        for (i in 0..6) {
+            val z = -1.5f - i * 3.7f
+            node(1, -2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f)
+            node(1, 2.48f, 0.35f, z, 0.035f, 0.055f, 1.15f)
+            node(1, -1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f)
+            node(1, 1.8f, -1.55f, z, 0.75f, 0.025f, 0.035f)
+        }
+        for (i in 0..5) node(2, 0f, 1.54f, -2.5f - i * 4.2f, 1.65f, 0.025f, 0.045f)
+
+        val json = """
+          {
+            "asset":{"version":"2.0","generator":"Neon Rush 3D Prototype"},
+            "scene":0,
+            "scenes":[{"nodes":[${nodes.indices.joinToString(",") { it.toString() }}]}],
+            "nodes":[${nodes.joinToString(",")}],
+            "meshes":[
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0}]},
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":1}]},
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":2}]}
+            ],
+            "materials":[
+              {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.035,0.065,0.12,1],"metallicFactor":0.72,"roughnessFactor":0.38}},
+              {"name":"Cyan energy","emissiveFactor":[0.02,0.75,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.02,0.35,0.48,1],"metallicFactor":0.25,"roughnessFactor":0.25}},
+              {"name":"Magenta energy","emissiveFactor":[0.9,0.025,0.35],"pbrMetallicRoughness":{"baseColorFactor":[0.4,0.015,0.12,1],"metallicFactor":0.2,"roughnessFactor":0.3}}
+            ],
+            "buffers":[{"uri":"$dataUri","byteLength":${bytes.size}}],
+            "bufferViews":[
+              {"buffer":0,"byteOffset":0,"byteLength":576,"target":34962},
+              {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963}
+            ],
+            "accessors":[
+              {"bufferView":0,"byteOffset":0,"componentType":5126,"count":24,"type":"VEC3","min":[-0.5,-0.5,-0.5],"max":[0.5,0.5,0.5]},
+              {"bufferView":0,"byteOffset":288,"componentType":5126,"count":24,"type":"VEC3"},
+              {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"}
+            ]
+          }
+        """.trimIndent()
+        return ByteBuffer.wrap(json.toByteArray(Charsets.UTF_8))
+    }
+
+    fun resource(uri: String): ByteBuffer {
+        val encoded = uri.substringAfter(',', "")
+        return ByteBuffer.wrap(Base64.decode(encoded, Base64.DEFAULT))
+    }
+}
