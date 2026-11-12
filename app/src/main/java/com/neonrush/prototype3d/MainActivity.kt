@@ -11,20 +11,13 @@ import com.google.android.filament.utils.Utils
 import kotlin.math.sin
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        init { Utils.init() }
-    }
+    companion object { init { Utils.init() } }
 
-    private data class MovingNode(
-        val entity: Int,
-        val transform: FloatArray,
-        val baseZ: Float
-    )
+    private data class MovingNode(val entity: Int, val transform: FloatArray, val baseZ: Float)
 
     private lateinit var surfaceView: SurfaceView
     private lateinit var modelViewer: ModelViewer
     private val choreographer by lazy { Choreographer.getInstance() }
-
     private var animationStartNanos = 0L
     private var animationNodesReady = false
     private var pilotEntity = 0
@@ -32,7 +25,7 @@ class MainActivity : ComponentActivity() {
     private var pilotBaseX = 0f
     private var pilotBaseY = 0f
     private var pilotBaseZ = 0f
-    private val movingCorridorNodes = mutableListOf<MovingNode>()
+    private val movingEnvironment = mutableListOf<MovingNode>()
 
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -65,7 +58,6 @@ class MainActivity : ComponentActivity() {
         }
         modelViewer.view.antiAliasing = View.AntiAliasing.FXAA
         modelViewer.view.bloomOptions = modelViewer.view.bloomOptions.apply { enabled = true }
-
         modelViewer.loadModelGltf(CorridorGltf.create()) { uri -> CorridorGltf.resource(uri) }
     }
 
@@ -84,12 +76,19 @@ class MainActivity : ComponentActivity() {
         pilotBaseY = pilotTransform[13]
         pilotBaseZ = pilotTransform[14]
 
+        for (i in 0..3) {
+            addMovingNode("env_floor_$i")
+            addMovingNode("env_ceiling_$i")
+            addMovingNode("env_wall_left_$i")
+            addMovingNode("env_wall_right_$i")
+        }
         for (i in 0..6) {
             addMovingNode("guide_left_$i")
             addMovingNode("guide_right_$i")
             addMovingNode("floor_left_$i")
             addMovingNode("floor_right_$i")
         }
+        for (i in 0..5) addMovingNode("ceiling_marker_$i")
         animationStartNanos = 0L
         animationNodesReady = true
     }
@@ -102,7 +101,7 @@ class MainActivity : ComponentActivity() {
         if (instance == 0) return
         val transform = FloatArray(16)
         manager.getTransform(instance, transform)
-        movingCorridorNodes += MovingNode(entity, transform, transform[14])
+        movingEnvironment += MovingNode(entity, transform, transform[14])
     }
 
     private fun animateScene(frameTimeNanos: Long) {
@@ -110,21 +109,27 @@ class MainActivity : ComponentActivity() {
         val seconds = ((frameTimeNanos - animationStartNanos) / 1_000_000_000.0).toFloat()
         val manager = modelViewer.engine.transformManager
 
-        // Keep entity IDs, not TransformManager instances: instances can change between frames.
+        // Keep the pilot near the centre; the world motion sells forward flight.
         val currentPilotInstance = manager.getInstance(pilotEntity)
         if (currentPilotInstance != 0) {
-            pilotTransform[12] = pilotBaseX + sin(seconds * 0.82f) * 0.48f
-            pilotTransform[13] = pilotBaseY + sin(seconds * 1.65f) * 0.13f
-            pilotTransform[14] = pilotBaseZ + sin(seconds * 0.58f) * 0.22f
+            pilotTransform[12] = pilotBaseX + sin(seconds * 0.55f) * 0.12f
+            pilotTransform[13] = pilotBaseY + sin(seconds * 1.35f) * 0.07f
+            pilotTransform[14] = pilotBaseZ
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
 
-        // Luminous corridor bars stream toward the camera and loop for a forward-flight cue.
-        val travel = (seconds * 4.2f) % 27.0f
-        movingCorridorNodes.forEach { moving ->
+        // The complete corridor shell and its luminous details stream toward the camera.
+        // Each environment segment wraps at the far end, keeping four sections in motion.
+        val travel = (seconds * 5.0f) % 36.0f
+        movingEnvironment.forEach { moving ->
             val instance = manager.getInstance(moving.entity)
             if (instance != 0) {
-                moving.transform[14] = moving.baseZ + travel
+                var z = moving.baseZ + travel
+                if (moving.entity != 0 && moving.baseZ < -30f) {
+                    // Fixed far-end wall is intentionally excluded from the scrolling set.
+                }
+                if (z > 2f) z -= 36f
+                moving.transform[14] = z
                 manager.setTransform(instance, moving.transform)
             }
         }
