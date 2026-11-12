@@ -1,78 +1,68 @@
 package com.neonrush.prototype3d
 
 import android.os.Bundle
+import android.view.Choreographer
+import android.view.SurfaceView
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.google.android.filament.View
+import com.google.android.filament.utils.ModelViewer
+import com.google.android.filament.utils.Utils
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            PrototypeHome()
-        }
+    companion object {
+        init { Utils.init() }
     }
-}
 
-@Composable
-private fun PrototypeHome() {
-    val background = Color(0xFF070B16)
-    val cyan = Color(0xFF35E7FF)
+    private lateinit var surfaceView: SurfaceView
+    private lateinit var modelViewer: ModelViewer
+    private val choreographer by lazy { Choreographer.getInstance() }
 
-    MaterialTheme {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(background),
-            color = background
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "NEON RUSH",
-                    color = cyan,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "3D PROTOTYPE",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Text(
-                    text = "Standalone renderer test environment",
-                    color = Color(0xFF9AA8BC),
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 18.dp)
-                )
-                Text(
-                    text = "Next milestone: real-time 3D scene",
-                    color = cyan,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 36.dp)
-                )
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!isFinishing && ::modelViewer.isInitialized) {
+                modelViewer.render(frameTimeNanos)
+                choreographer.postFrameCallback(this)
             }
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.rgb(5, 8, 18)
+        window.navigationBarColor = android.graphics.Color.rgb(5, 8, 18)
+        surfaceView = SurfaceView(this)
+        setContentView(surfaceView)
+
+        modelViewer = ModelViewer(surfaceView)
+        modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
+            hdrColorBuffer = View.QualityLevel.MEDIUM
+        }
+        modelViewer.view.antiAliasing = View.AntiAliasing.FXAA
+        modelViewer.view.bloomOptions = modelViewer.view.bloomOptions.apply { enabled = true }
+
+        modelViewer.loadModelGltf(CorridorGltf.create()) { uri -> CorridorGltf.resource(uri) }
+        surfaceView.setOnTouchListener { _, event ->
+            modelViewer.onTouchEvent(event)
+            true
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::modelViewer.isInitialized) choreographer.postFrameCallback(frameCallback)
+    }
+
+    override fun onPause() {
+        choreographer.removeFrameCallback(frameCallback)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        choreographer.removeFrameCallback(frameCallback)
+        if (::modelViewer.isInitialized) {
+            modelViewer.destroyModel()
+            modelViewer.engine.destroy()
+        }
+        super.onDestroy()
     }
 }
