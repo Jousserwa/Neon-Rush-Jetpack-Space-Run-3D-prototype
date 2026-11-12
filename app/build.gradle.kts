@@ -32,6 +32,7 @@ android {
 
 dependencies {
     implementation(libs.filament.android)
+    implementation(libs.filament.utils.android)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
