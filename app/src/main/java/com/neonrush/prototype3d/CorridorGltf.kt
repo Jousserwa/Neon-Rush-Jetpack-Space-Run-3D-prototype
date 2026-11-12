@@ -3,6 +3,7 @@ package com.neonrush.prototype3d
 import android.util.Base64
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 internal object CorridorGltf {
     fun create(): ByteBuffer {
