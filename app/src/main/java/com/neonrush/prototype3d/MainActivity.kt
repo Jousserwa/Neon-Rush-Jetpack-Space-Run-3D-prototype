@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import android.view.SurfaceView
 import androidx.activity.ComponentActivity
 import com.google.android.filament.View
+import com.google.android.filament.Skybox
 import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Manipulator
 import com.google.android.filament.utils.Utils
@@ -84,6 +85,10 @@ class MainActivity : ComponentActivity() {
             .farPlane(100f)
             .build(Manipulator.Mode.ORBIT)
         modelViewer = ModelViewer(surfaceView, manipulator = gameplayCamera)
+        // A softly lit woodland sky prevents the open world from disappearing into black.
+        modelViewer.scene.skybox = Skybox.Builder()
+            .color(0.16f, 0.29f, 0.19f, 1.0f)
+            .build(modelViewer.engine)
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
             hdrColorBuffer = View.QualityLevel.MEDIUM
         }
