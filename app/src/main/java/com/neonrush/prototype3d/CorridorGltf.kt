@@ -80,6 +80,23 @@ internal object CorridorGltf {
             node(2, 4.6f, 4.68f, z, 1.7f, 0.025f, 0.07f, "hangar_light_right_$i")
             node(1, -4.2f, -2.08f, z, 1.4f, 0.025f, 0.045f, "hangar_floor_light_left_$i")
             node(1, 4.2f, -2.08f, z, 1.4f, 0.025f, 0.045f, "hangar_floor_light_right_$i")
+
+            // Heavy docking-bay frames make the hangar read as a large industrial space.
+            node(0, -6.8f, 1.15f, z, 0.32f, 2.65f, 0.48f, "hangar_arch_left_$i")
+            node(0, 6.8f, 1.15f, z, 0.32f, 2.65f, 0.48f, "hangar_arch_right_$i")
+            node(0, 0f, 3.65f, z, 6.9f, 0.32f, 0.48f, "hangar_arch_top_$i")
+
+            // Raised service platforms and their illuminated safety edges.
+            node(0, -4.55f, -1.91f, z, 2.35f, 0.18f, 3.9f, "hangar_platform_left_$i")
+            node(0, 4.55f, -1.91f, z, 2.35f, 0.18f, 3.9f, "hangar_platform_right_$i")
+            node(1, -3.35f, -1.77f, z, 0.045f, 0.035f, 3.45f, "hangar_platform_edge_left_$i")
+            node(1, 3.35f, -1.77f, z, 0.045f, 0.035f, 3.45f, "hangar_platform_edge_right_$i")
+
+            // Overhead service rails and bulky equipment pods add depth and scale.
+            node(0, -2.75f, 4.35f, z, 0.16f, 0.14f, 8.2f, "hangar_rail_left_$i")
+            node(0, 2.75f, 4.35f, z, 0.16f, 0.14f, 8.2f, "hangar_rail_right_$i")
+            node(0, -6.15f, -0.55f, z - 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_left_$i")
+            node(0, 6.15f, -0.55f, z + 1.8f, 0.82f, 1.15f, 1.05f, "hangar_equipment_right_$i")
         }
 
         val json = """
