@@ -3,6 +3,7 @@ package com.neonrush.prototype3d
 import android.util.Base64
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.pow
 
 internal object CorridorGltf {
     fun create(): ByteBuffer {
@@ -16,9 +17,43 @@ internal object CorridorGltf {
         )
         val pattern = intArrayOf(0, 1, 2, 0, 2, 3)
         val indices = ShortArray(36) { i -> (i / 6 * 4 + pattern[i % 6]).toShort() }
-        val binary = ByteBuffer.allocate(648).order(ByteOrder.LITTLE_ENDIAN)
+        val sphereVertices = mutableListOf<Float>()
+        val sphereIndices = mutableListOf<Short>()
+        val rings = 16
+        val segments = 24
+        for (ring in 0..rings) {
+            val phi = Math.PI.toFloat() * ring / rings
+            for (segment in 0..segments) {
+                val theta = (2.0 * Math.PI * segment / segments).toFloat()
+                // Superellipsoid profile: broad, softly bevelled armour volumes
+                // instead of balloon-like spheres. Each named body part is scaled
+                // independently, preserving the separate equipment attachment points.
+                fun bevel(value: Float): Float =
+                    kotlin.math.sign(value) * kotlin.math.abs(value).toFloat().let {
+                        it.pow(0.62f)
+                    }
+                val rawX = kotlin.math.sin(phi) * kotlin.math.cos(theta)
+                val rawY = kotlin.math.cos(phi)
+                val rawZ = kotlin.math.sin(phi) * kotlin.math.sin(theta)
+                val x = bevel(rawX)
+                val y = bevel(rawY)
+                val z = bevel(rawZ)
+                val normalLength = kotlin.math.sqrt(x * x + y * y + z * z).coerceAtLeast(0.0001f)
+                sphereVertices.addAll(listOf(x, y, z, x / normalLength, y / normalLength, z / normalLength))
+            }
+        }
+        for (ring in 0 until rings) {
+            for (segment in 0 until segments) {
+                val a = ring * (segments + 1) + segment
+                val b = a + segments + 1
+                sphereIndices.addAll(listOf(a.toShort(), (a + 1).toShort(), b.toShort(), (a + 1).toShort(), (b + 1).toShort(), b.toShort()))
+            }
+        }
+        val binary = ByteBuffer.allocate(24000).order(ByteOrder.LITTLE_ENDIAN)
         vertices.forEach(binary::putFloat)
         indices.forEach(binary::putShort)
+        sphereVertices.forEach(binary::putFloat)
+        sphereIndices.forEach(binary::putShort)
         val bytes = ByteArray(binary.position())
         binary.flip()
         binary.get(bytes)
@@ -30,17 +65,71 @@ internal object CorridorGltf {
             nodes += """{$nodeName"mesh":$mesh,"translation":[$x,$y,$z],"scale":[$sx,$sy,$sz]}"""
         }
 
-        nodes += """{"name":"pilot_root","children":[1,2,3,4,5,6,7,8,9,10]}"""
-        node(0, 0f, -0.58f, -3.4f, 0.52f, 0.72f, 0.32f, "pilot_torso")
-        node(0, 0f, 0.12f, -3.42f, 0.38f, 0.38f, 0.38f, "pilot_helmet")
-        node(1, 0f, 0.13f, -3.20f, 0.27f, 0.09f, 0.035f, "pilot_visor")
-        node(0, 0f, -0.55f, -3.82f, 0.36f, 0.42f, 0.24f, "pilot_jetpack")
-        node(2, -0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f, "pilot_left_arm")
-        node(2, 0.43f, -0.55f, -3.42f, 0.18f, 0.58f, 0.22f, "pilot_right_arm")
-        node(0, -0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f, "pilot_left_leg")
-        node(0, 0.17f, -1.13f, -3.35f, 0.19f, 0.55f, 0.22f, "pilot_right_leg")
-        node(1, -0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_left_pack_light")
-        node(1, 0.23f, -0.52f, -3.83f, 0.06f, 0.34f, 0.08f, "pilot_right_pack_light")
+        nodes += """{"name":"pilot_root","children":[]}"""
+        nodes += """{"name":"pilot_head_root","translation":[0,0.22,-3.42],"children":[]}"""
+        val headStart = nodes.size
+        fun headPart(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, name: String) {
+            node(mesh, x, y - 0.22f, z + 3.42f, sx, sy, sz, name)
+        }
+        fun pilotPart(mesh: Int, x: Float, y: Float, z: Float, sx: Float, sy: Float, sz: Float, name: String) {
+            node(mesh, x, y, z, sx, sy, sz, name)
+        }
+        // Base suit only: the jetpack, weapons and upgrades remain separate equipment.
+        val alloy = 8
+        val cyan = 9
+        val magenta = 10
+        headPart(alloy, 0f, 0.22f, -3.42f, 0.37f, 0.42f, 0.34f, "pilot_helmet")
+        headPart(cyan, 0f, 0.18f, -3.105f, 0.305f, 0.275f, 0.105f, "pilot_visor")
+        headPart(magenta, 0.105f, 0.385f, -3.13f, 0.205f, 0.105f, 0.075f, "pilot_visor_magenta")
+        headPart(cyan, -0.285f, 0.19f, -3.13f, 0.065f, 0.12f, 0.07f, "pilot_helmet_cyan_rim")
+        headPart(magenta, -0.355f, 0.12f, -3.34f, 0.085f, 0.15f, 0.09f, "pilot_helmet_side_disc")
+        headPart(cyan, -0.36f, 0.12f, -3.245f, 0.035f, 0.075f, 0.035f, "pilot_helmet_side_core")
+        val headEnd = nodes.size
+        nodes[1] = """{"name":"pilot_head_root","translation":[0,0.22,-3.42],"children":[${(headStart until headEnd).joinToString(",")}]}"""
+        pilotPart(alloy, 0f, -0.19f, -3.43f, 0.19f, 0.16f, 0.19f, "pilot_neck")
+        pilotPart(alloy, 0f, -0.31f, -3.43f, 0.235f, 0.075f, 0.22f, "pilot_neck_collar")
+        pilotPart(alloy, 0f, -0.69f, -3.42f, 0.43f, 0.48f, 0.245f, "pilot_torso")
+        pilotPart(alloy, -0.205f, -0.48f, -3.205f, 0.235f, 0.265f, 0.105f, "pilot_chest_left")
+        pilotPart(alloy, 0.205f, -0.48f, -3.205f, 0.235f, 0.265f, 0.105f, "pilot_chest_right")
+        pilotPart(cyan, 0f, -0.40f, -3.205f, 0.055f, 0.12f, 0.035f, "pilot_chest_core")
+        pilotPart(magenta, 0f, -0.76f, -3.20f, 0.25f, 0.055f, 0.055f, "pilot_abdomen_upper_trim")
+        pilotPart(alloy, 0f, -0.91f, -3.40f, 0.32f, 0.24f, 0.205f, "pilot_abdomen")
+        pilotPart(alloy, -0.12f, -0.91f, -3.205f, 0.12f, 0.105f, 0.055f, "pilot_abdomen_left_plate")
+        pilotPart(alloy, 0.12f, -0.91f, -3.205f, 0.12f, 0.105f, 0.055f, "pilot_abdomen_right_plate")
+        pilotPart(cyan, 0f, -1.04f, -3.205f, 0.035f, 0.105f, 0.03f, "pilot_abdomen_light")
+        pilotPart(alloy, 0f, -1.18f, -3.42f, 0.29f, 0.18f, 0.21f, "pilot_hip")
+        pilotPart(alloy, -0.48f, -0.39f, -3.42f, 0.255f, 0.245f, 0.245f, "pilot_left_shoulder")
+        pilotPart(alloy, 0.48f, -0.39f, -3.42f, 0.255f, 0.245f, 0.245f, "pilot_right_shoulder")
+        pilotPart(magenta, -0.48f, -0.56f, -3.205f, 0.205f, 0.055f, 0.045f, "pilot_left_shoulder_trim")
+        pilotPart(magenta, 0.48f, -0.56f, -3.205f, 0.205f, 0.055f, 0.045f, "pilot_right_shoulder_trim")
+        pilotPart(cyan, -0.48f, -0.36f, -3.185f, 0.075f, 0.045f, 0.035f, "pilot_left_shoulder_light")
+        pilotPart(cyan, 0.48f, -0.36f, -3.185f, 0.075f, 0.045f, 0.035f, "pilot_right_shoulder_light")
+        pilotPart(alloy, -0.53f, -0.73f, -3.43f, 0.155f, 0.29f, 0.16f, "pilot_left_upper_arm")
+        pilotPart(alloy, 0.53f, -0.73f, -3.43f, 0.155f, 0.29f, 0.16f, "pilot_right_upper_arm")
+        pilotPart(alloy, -0.57f, -1.08f, -3.43f, 0.125f, 0.27f, 0.14f, "pilot_left_forearm")
+        pilotPart(alloy, 0.57f, -1.08f, -3.43f, 0.125f, 0.27f, 0.14f, "pilot_right_forearm")
+        pilotPart(cyan, -0.57f, -1.10f, -3.285f, 0.045f, 0.19f, 0.035f, "pilot_left_forearm_light")
+        pilotPart(magenta, 0.57f, -1.10f, -3.285f, 0.045f, 0.19f, 0.035f, "pilot_right_forearm_trim")
+        pilotPart(magenta, -0.57f, -1.31f, -3.42f, 0.145f, 0.065f, 0.15f, "pilot_left_wrist")
+        pilotPart(magenta, 0.57f, -1.31f, -3.42f, 0.145f, 0.065f, 0.15f, "pilot_right_wrist")
+        pilotPart(alloy, -0.57f, -1.46f, -3.43f, 0.13f, 0.14f, 0.115f, "pilot_left_hand")
+        pilotPart(alloy, 0.57f, -1.46f, -3.43f, 0.13f, 0.14f, 0.115f, "pilot_right_hand")
+        pilotPart(alloy, -0.205f, -1.48f, -3.42f, 0.205f, 0.32f, 0.20f, "pilot_left_thigh")
+        pilotPart(alloy, 0.205f, -1.48f, -3.42f, 0.205f, 0.32f, 0.20f, "pilot_right_thigh")
+        pilotPart(magenta, -0.205f, -1.50f, -3.225f, 0.055f, 0.22f, 0.045f, "pilot_left_thigh_trim")
+        pilotPart(cyan, 0.205f, -1.50f, -3.225f, 0.045f, 0.22f, 0.04f, "pilot_right_thigh_light")
+        pilotPart(magenta, -0.205f, -1.79f, -3.25f, 0.15f, 0.15f, 0.095f, "pilot_left_knee")
+        pilotPart(magenta, 0.205f, -1.79f, -3.25f, 0.15f, 0.15f, 0.095f, "pilot_right_knee")
+        pilotPart(alloy, -0.205f, -2.08f, -3.42f, 0.155f, 0.31f, 0.16f, "pilot_left_shin")
+        pilotPart(alloy, 0.205f, -2.08f, -3.42f, 0.155f, 0.31f, 0.16f, "pilot_right_shin")
+        pilotPart(cyan, -0.205f, -2.08f, -3.265f, 0.055f, 0.23f, 0.035f, "pilot_left_shin_light")
+        pilotPart(magenta, 0.205f, -2.08f, -3.265f, 0.055f, 0.23f, 0.035f, "pilot_right_shin_trim")
+        pilotPart(alloy, -0.205f, -2.39f, -3.31f, 0.18f, 0.16f, 0.30f, "pilot_left_boot")
+        pilotPart(alloy, 0.205f, -2.39f, -3.31f, 0.18f, 0.16f, 0.30f, "pilot_right_boot")
+        pilotPart(magenta, -0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_left_boot_sole")
+        pilotPart(magenta, 0.205f, -2.51f, -3.30f, 0.17f, 0.045f, 0.27f, "pilot_right_boot_sole")
+        val environmentStartIndex = nodes.size
+        nodes[0] = """{"name":"pilot_root","children":[1,${(headEnd until environmentStartIndex).joinToString(",")}]}"""
 
         for (i in 0..3) {
             val z = -4.5f - i * 9f
@@ -150,7 +239,7 @@ internal object CorridorGltf {
           {
             "asset":{"version":"2.0","generator":"Neon Rush 3D Prototype"},
             "scene":0,
-            "scenes":[{"nodes":[${(listOf(0) + (11 until nodes.size)).joinToString(",")}]}],
+            "scenes":[{"nodes":[${(listOf(0) + (environmentStartIndex until nodes.size)).joinToString(",")}]}],
             "nodes":[${nodes.joinToString(",")}],
             "meshes":[
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":0}]},
@@ -160,7 +249,10 @@ internal object CorridorGltf {
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":4}]},
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":5}]},
               {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":6}]},
-              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]}
+              {"primitives":[{"attributes":{"POSITION":0,"NORMAL":1},"indices":2,"material":7}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":8}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":9}]},
+              {"primitives":[{"attributes":{"POSITION":3,"NORMAL":4},"indices":5,"material":10}]}
             ],
             "materials":[
               {"name":"Midnight alloy","pbrMetallicRoughness":{"baseColorFactor":[0.28,0.34,0.38,1],"metallicFactor":0.22,"roughnessFactor":0.62}},
@@ -170,17 +262,25 @@ internal object CorridorGltf {
               {"name":"Forest earth","pbrMetallicRoughness":{"baseColorFactor":[0.075,0.09,0.065,1],"metallicFactor":0.0,"roughnessFactor":0.98}},
               {"name":"Bark and roots","pbrMetallicRoughness":{"baseColorFactor":[0.30,0.16,0.075,1],"metallicFactor":0.0,"roughnessFactor":0.96}},
               {"name":"Forest undergrowth","pbrMetallicRoughness":{"baseColorFactor":[0.045,0.16,0.045,1],"metallicFactor":0.0,"roughnessFactor":1.0}},
-              {"name":"Weathered stone","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.22,0.20,1],"metallicFactor":0.0,"roughnessFactor":0.94}}
+              {"name":"Weathered stone","pbrMetallicRoughness":{"baseColorFactor":[0.19,0.22,0.20,1],"metallicFactor":0.0,"roughnessFactor":0.94}},
+              {"name":"Pilot graphite armour","pbrMetallicRoughness":{"baseColorFactor":[0.105,0.12,0.19,1],"metallicFactor":0.48,"roughnessFactor":0.34}},
+              {"name":"Pilot cyan visor and energy","emissiveFactor":[0.02,0.72,1.0],"pbrMetallicRoughness":{"baseColorFactor":[0.015,0.38,0.52,1],"metallicFactor":0.3,"roughnessFactor":0.19}},
+              {"name":"Pilot magenta armour accents","emissiveFactor":[0.75,0.015,0.42],"pbrMetallicRoughness":{"baseColorFactor":[0.48,0.018,0.22,1],"metallicFactor":0.32,"roughnessFactor":0.24}}
             ],
             "buffers":[{"uri":"$dataUri","byteLength":${bytes.size}}],
             "bufferViews":[
               {"buffer":0,"byteOffset":0,"byteLength":576,"byteStride":24,"target":34962},
-              {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963}
+              {"buffer":0,"byteOffset":576,"byteLength":72,"target":34963},
+              {"buffer":0,"byteOffset":648,"byteLength":10200,"byteStride":24,"target":34962},
+              {"buffer":0,"byteOffset":10848,"byteLength":4608,"target":34963}
             ],
             "accessors":[
               {"bufferView":0,"byteOffset":0,"componentType":5126,"count":24,"type":"VEC3","min":[-0.5,-0.5,-0.5],"max":[0.5,0.5,0.5]},
               {"bufferView":0,"byteOffset":12,"componentType":5126,"count":24,"type":"VEC3"},
-              {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"}
+              {"bufferView":1,"byteOffset":0,"componentType":5123,"count":36,"type":"SCALAR"},
+              {"bufferView":2,"byteOffset":0,"componentType":5126,"count":425,"type":"VEC3","min":[-1,-1,-1],"max":[1,1,1]},
+              {"bufferView":2,"byteOffset":12,"componentType":5126,"count":425,"type":"VEC3"},
+              {"bufferView":3,"byteOffset":0,"componentType":5123,"count":2304,"type":"SCALAR"}
             ]
           }
         """.trimIndent()

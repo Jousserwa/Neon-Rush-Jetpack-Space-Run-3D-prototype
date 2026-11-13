@@ -12,6 +12,12 @@ import com.google.android.filament.EntityManager
 import com.google.android.filament.utils.ModelViewer
 import com.google.android.filament.utils.Manipulator
 import com.google.android.filament.utils.Utils
+import com.google.android.filament.gltfio.AssetLoader
+import com.google.android.filament.gltfio.FilamentAsset
+import com.google.android.filament.gltfio.ResourceLoader
+import com.google.android.filament.gltfio.UbershaderProvider
+import android.util.Log
+import java.nio.ByteBuffer
 
 class MainActivity : ComponentActivity() {
     companion object { init { Utils.init() } }
@@ -31,6 +37,11 @@ class MainActivity : ComponentActivity() {
     private var animationNodesReady = false
     private var pilotEntity = 0
     private var pilotTransform = FloatArray(16)
+    private var pilotHeadEntity = 0
+    private var pilotHeadTransform = FloatArray(16)
+    private var importedPilotAsset: FilamentAsset? = null
+    private var importedPilotLoader: AssetLoader? = null
+    private var importedPilotMaterials: UbershaderProvider? = null
     private var pilotBaseX = 0f
     private var pilotBaseY = 0f
     private var pilotBaseZ = 0f
@@ -102,32 +113,121 @@ class MainActivity : ComponentActivity() {
             .build(modelViewer.engine, sunlight)
         modelViewer.scene.addEntity(sunlight)
 
+        // Front fill: the route-facing side of the imported pilot points toward -Z.
+        // This light comes from ahead of the pilot so the opening dark corridor does not
+        // leave the character as a black silhouette.
+        val pilotFrontFill = EntityManager.get().create()
+        LightManager.Builder(LightManager.Type.DIRECTIONAL)
+            .color(0.72f, 0.84f, 1.0f)
+            .intensity(42000.0f)
+            .direction(0.0f, -0.18f, -1.0f)
+            .castShadows(false)
+            .build(modelViewer.engine, pilotFrontFill)
+        modelViewer.scene.addEntity(pilotFrontFill)
+
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
             hdrColorBuffer = View.QualityLevel.MEDIUM
         }
         modelViewer.view.antiAliasing = View.AntiAliasing.FXAA
         modelViewer.view.bloomOptions = modelViewer.view.bloomOptions.apply { enabled = true }
         modelViewer.loadModelGltf(CorridorGltf.create()) { uri -> CorridorGltf.resource(uri) }
+        loadImportedPilot()
+    }
+
+    /**
+     * Loads the uploaded rigged glTF character into the existing Filament scene.
+     * The procedural corridor / hangar / forest remains the environment; only its old
+     * placeholder pilot is hidden after the imported model has loaded successfully.
+     */
+    private fun loadImportedPilot() {
+        val engine = modelViewer.engine
+        var resourceLoader: ResourceLoader? = null
+        try {
+            val gltfBytes = assets.open("pilot/Superhero_Male_FullBody.gltf").use { it.readBytes() }
+            val materials = UbershaderProvider(engine)
+            val loader = AssetLoader(engine, materials, EntityManager.get())
+            val character = loader.createAsset(ByteBuffer.wrap(gltfBytes))
+                ?: throw IllegalStateException("Filament could not parse Superhero_Male_FullBody.gltf")
+
+            resourceLoader = ResourceLoader(engine, true)
+            for (uri in character.resourceUris) {
+                val bytes = assets.open("pilot/$uri").use { it.readBytes() }
+                resourceLoader.addResourceData(uri, ByteBuffer.wrap(bytes))
+            }
+            resourceLoader.loadResources(character)
+            resourceLoader.destroy()
+            resourceLoader = null
+
+            // Add the imported character to the same scene as the existing environment.
+            modelViewer.scene.addEntities(character.entities)
+
+            val transformManager = engine.transformManager
+            val rootInstance = transformManager.getInstance(character.root)
+            if (rootInstance == 0) {
+                loader.destroyAsset(character)
+                loader.destroy()
+                materials.destroyMaterials()
+                materials.destroy()
+                throw IllegalStateException("Imported character root has no transform component")
+            }
+
+            // The source model is approximately 1.81 units tall and stands on Y=0.
+            // Position it at the existing pilot's gameplay depth and floor level.
+            val characterTransform = FloatArray(16)
+            // The source character faces the camera (+Z). Turn it toward the
+            // forward route (-Z), away from the gameplay camera.
+            characterTransform[0] = -1.0f
+            characterTransform[5] = 1.0f
+            characterTransform[10] = -1.0f
+            characterTransform[12] = 0.0f
+            characterTransform[13] = -0.85f
+            characterTransform[14] = -3.42f
+            characterTransform[15] = 1.0f
+            transformManager.setTransform(rootInstance, characterTransform)
+
+            // Hide the old primitive robot only after the real glTF has loaded and entered the scene.
+            val environmentAsset = modelViewer.asset
+            val oldPilotRoot = environmentAsset?.getFirstEntityByName("pilot_root") ?: 0
+            val oldPilotInstance = if (oldPilotRoot != 0) transformManager.getInstance(oldPilotRoot) else 0
+            if (oldPilotInstance != 0) {
+                val hidden = FloatArray(16)
+                hidden[15] = 1.0f
+                transformManager.setTransform(oldPilotInstance, hidden)
+            }
+
+            importedPilotMaterials = materials
+            importedPilotLoader = loader
+            importedPilotAsset = character
+            Log.i("NeonRushPilot", "Imported rigged pilot loaded. External resources: ${character.resourceUris.size}")
+        } catch (error: Exception) {
+            resourceLoader?.destroy()
+            Log.e("NeonRushPilot", "Imported pilot failed to load; placeholder remains visible.", error)
+        }
     }
 
     private fun prepareAnimationNodes() {
         if (animationNodesReady) return
-        val asset = modelViewer.asset ?: return
+        val environmentAsset = modelViewer.asset ?: return
+        val characterAsset = importedPilotAsset ?: return
         val manager = modelViewer.engine.transformManager
 
-        pilotEntity = asset.getFirstEntityByName("pilot_root")
+        pilotEntity = characterAsset.root
         if (pilotEntity == 0) return
         val pilotInstance = manager.getInstance(pilotEntity)
         if (pilotInstance == 0) return
         pilotTransform = FloatArray(16)
         manager.getTransform(pilotInstance, pilotTransform)
         pilotBaseX = pilotTransform[12]
-        pilotBaseY = pilotTransform[13] + 0.55f
+        pilotBaseY = pilotTransform[13]
         pilotBaseZ = pilotTransform[14]
         currentPilotX = pilotBaseX
         currentPilotY = pilotBaseY
         desiredPilotX = 0f
         desiredPilotY = 0f
+
+        // The imported character has a skeleton but this particular glTF has no animation clips.
+        // Keep the old head-pivot animation disabled; steering moves the complete rigged character.
+        pilotHeadEntity = 0
 
         for (i in 0..3) {
             addMovingNode("env_floor_$i", corridorNodes)
@@ -224,6 +324,20 @@ class MainActivity : ComponentActivity() {
             manager.setTransform(currentPilotInstance, pilotTransform)
         }
 
+        // Subtle three-quarter glance, with tiny idle drift and steering response.
+        val headInstance = manager.getInstance(pilotHeadEntity)
+        if (headInstance != 0 && pilotHeadTransform.size == 16) {
+            val yaw = 0.22f + (currentPilotX - pilotBaseX) * 0.035f +
+                kotlin.math.sin(seconds * 1.15f) * 0.012f
+            val c = kotlin.math.cos(yaw)
+            val s = kotlin.math.sin(yaw)
+            pilotHeadTransform[0] = c
+            pilotHeadTransform[2] = -s
+            pilotHeadTransform[8] = s
+            pilotHeadTransform[10] = c
+            manager.setTransform(headInstance, pilotHeadTransform)
+        }
+
         // Continuous forward travel. The door opens as the pilot approaches,
         // then the corridor gives way to a repeating sequence of hangar bays.
         val travel = seconds * 5f
@@ -293,6 +407,16 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         choreographer.removeFrameCallback(frameCallback)
         if (::modelViewer.isInitialized) {
+            importedPilotAsset?.let { character ->
+                modelViewer.scene.removeEntities(character.entities)
+                importedPilotLoader?.destroyAsset(character)
+            }
+            importedPilotAsset = null
+            importedPilotLoader?.destroy()
+            importedPilotLoader = null
+            importedPilotMaterials?.destroyMaterials()
+            importedPilotMaterials?.destroy()
+            importedPilotMaterials = null
             modelViewer.destroyModel()
             modelViewer.engine.destroy()
         }
