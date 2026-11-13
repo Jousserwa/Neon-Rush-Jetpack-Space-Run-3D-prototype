@@ -1374,7 +1374,12 @@
         "metallicRoughnessTexture": {
           "index": 6
         }
-      }
+      },
+      "emissiveFactor": [
+        0.18,
+        0.18,
+        0.18
+      ]
     }
   ],
   "meshes": [
