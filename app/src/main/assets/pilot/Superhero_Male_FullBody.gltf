@@ -1373,12 +1373,18 @@
         "metallicFactor": 0,
         "metallicRoughnessTexture": {
           "index": 6
-        }
+        },
+        "baseColorFactor": [
+          1,
+          0.68,
+          0.42,
+          1
+        ]
       },
       "emissiveFactor": [
-        0.18,
-        0.18,
-        0.18
+        0.16,
+        0.085,
+        0.045
       ]
     }
   ],
