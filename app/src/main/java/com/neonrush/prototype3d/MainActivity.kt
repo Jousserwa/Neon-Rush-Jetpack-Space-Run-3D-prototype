@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
         LightManager.Builder(LightManager.Type.DIRECTIONAL)
             .color(0.72f, 0.84f, 1.0f)
             .intensity(42000.0f)
-            .direction(0.0f, -0.18f, 1.0f)
+            .direction(0.0f, -0.18f, -1.0f)
             .castShadows(false)
             .build(modelViewer.engine, pilotFrontFill)
         modelViewer.scene.addEntity(pilotFrontFill)
