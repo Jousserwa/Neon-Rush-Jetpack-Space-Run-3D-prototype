@@ -113,6 +113,18 @@ class MainActivity : ComponentActivity() {
             .build(modelViewer.engine, sunlight)
         modelViewer.scene.addEntity(sunlight)
 
+        // Front fill: the route-facing side of the imported pilot points toward -Z.
+        // This light comes from ahead of the pilot so the opening dark corridor does not
+        // leave the character as a black silhouette.
+        val pilotFrontFill = EntityManager.get().create()
+        LightManager.Builder(LightManager.Type.DIRECTIONAL)
+            .color(0.72f, 0.84f, 1.0f)
+            .intensity(42000.0f)
+            .direction(0.0f, -0.18f, 1.0f)
+            .castShadows(false)
+            .build(modelViewer.engine, pilotFrontFill)
+        modelViewer.scene.addEntity(pilotFrontFill)
+
         modelViewer.view.renderQuality = modelViewer.view.renderQuality.apply {
             hdrColorBuffer = View.QualityLevel.MEDIUM
         }
@@ -162,9 +174,11 @@ class MainActivity : ComponentActivity() {
             // The source model is approximately 1.81 units tall and stands on Y=0.
             // Position it at the existing pilot's gameplay depth and floor level.
             val characterTransform = FloatArray(16)
-            characterTransform[0] = 1.0f
+            // The source character faces the camera (+Z). Turn it toward the
+            // forward route (-Z), away from the gameplay camera.
+            characterTransform[0] = -1.0f
             characterTransform[5] = 1.0f
-            characterTransform[10] = 1.0f
+            characterTransform[10] = -1.0f
             characterTransform[12] = 0.0f
             characterTransform[13] = -0.85f
             characterTransform[14] = -3.42f
