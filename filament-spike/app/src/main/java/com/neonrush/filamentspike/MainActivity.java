@@ -52,8 +52,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         status = new TextView(this);
         status.setTextColor(-1);
-        status.setTextSize(10);
-        status.setPadding(16, 12, 16, 12);
+        status.setTextSize(9);
+        status.setPadding(dp(10), dp(8), dp(10), dp(8));
         status.setBackgroundColor(0xDD050A12);
         status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\nLoading corridor…");
 
@@ -61,10 +61,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         panel.setFillViewport(false);
         panel.addView(status);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                -1, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        lp.topMargin = 8;
-        lp.leftMargin = 8;
-        lp.rightMargin = 8;
+                dp(248), dp(220), Gravity.TOP | Gravity.END);
+        lp.topMargin = dp(10);
+        lp.rightMargin = dp(10);
         root.addView(panel, lp);
         setContentView(root);
 
@@ -132,13 +131,22 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             .append(material == null ? "(no material)" : material.getName());
                     if (material != null && p <= 2) {
                         try {
-                            material.setParameter("emissiveFactor", 0.0f, 0.75f, 1.0f);
-                            out.append(" | CYAN EMISSIVE OVERRIDE APPLIED");
+                            // Diagnostic only: replace dark metallic PBR values while retaining ModelViewer SUN.
+                            float[][] colors = {
+                                    {0.12f, 0.15f, 0.19f, 1.0f},
+                                    {0.16f, 0.20f, 0.25f, 1.0f},
+                                    {0.12f, 0.15f, 0.20f, 1.0f}
+                            };
+                            float[] c = colors[p];
+                            material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
+                            material.setParameter("metallicFactor", 0.05f);
+                            material.setParameter("roughnessFactor", 0.72f);
+                            out.append(" | MATTE PBR OVERRIDE APPLIED");
                         } catch (Throwable ex) {
-                            out.append(" | emissive override FAILED: ")
+                            out.append(" | PBR override FAILED: ")
                                     .append(ex.getClass().getSimpleName()).append(": ")
                                     .append(String.valueOf(ex.getMessage()));
-                            Log.w("NeonRushFilament", "Emissive override failed for primitive " + p, ex);
+                            Log.w("NeonRushFilament", "PBR override failed for primitive " + p, ex);
                         }
                     }
                     out.append('\n');
@@ -258,8 +266,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private void updateStatus(String heading) {
-        status.setText(heading + "\nEmissive geometry + GLB structure test\n"
-                + "render() accepted: waiting\n" + modelInfo);
+        status.setText(heading + "\nMatte PBR + GLB structure test\n"
+                + "Existing SUN retained; no IBL yet\n" + modelInfo);
     }
 
     private void showFailure(String stage, Throwable e) {
@@ -269,6 +277,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 + e.getClass().getName() + ": " + String.valueOf(e.getMessage())
                 + "\n\n" + detail);
         Log.e("NeonRushFilament", stage + " failed", e);
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private byte[] readAsset(String name) throws Exception {
@@ -308,6 +320,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
                         acceptedFps, callbackFps, falseReturns)
+                        + "Matte PBR test • SUN retained • no IBL\n"
                         + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
                 callbacks = 0;
                 renderedFrames = 0;
