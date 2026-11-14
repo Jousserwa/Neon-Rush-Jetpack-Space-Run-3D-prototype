@@ -83,7 +83,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
             // Aim the existing SUN down and forward through the corridor, not straight down.
             LightManager lightManager = engine.getLightManager();
-            int sunInstance = lightManager.getInstance(viewer.light);
+            int sunInstance = lightManager.getInstance(viewer.getLight());
             lightManager.setDirection(sunInstance, 0.0f, -0.45f, -0.89f);
 
             // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
