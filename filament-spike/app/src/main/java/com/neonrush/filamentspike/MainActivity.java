@@ -344,12 +344,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private void createRuntimeCeilingQuad(MaterialInstance material) {
         if (runtimeCeilingEntity != 0) return;
         Engine engine = viewer.getEngine();
-        // Interleaved POSITION + NORMAL + UV0; 32-byte stride for the glTF material shader.
+        // KHR_materials_unlit needs POSITION and UV0 only; no NORMAL attribute.
+        // Interleaved POSITION + UV0, 20-byte stride.
         float[] vertices = {
-                -2.5f, 3.98f,  3.0f,  0f,-1f,0f,  0f,0f,
-                -2.5f, 3.98f, -10.0f, 0f,-1f,0f,  0f,1f,
-                 2.5f, 3.98f, -10.0f, 0f,-1f,0f,  1f,1f,
-                 2.5f, 3.98f,  3.0f,  0f,-1f,0f,  1f,0f
+                -2.5f, 3.98f,  3.0f,  0f,0f,
+                -2.5f, 3.98f, -10.0f, 0f,1f,
+                 2.5f, 3.98f, -10.0f, 1f,1f,
+                 2.5f, 3.98f,  3.0f,  1f,0f
         };
         ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
                 .order(ByteOrder.nativeOrder());
@@ -360,11 +361,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .bufferCount(1)
                 .vertexCount(4)
                 .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
-                        VertexBuffer.AttributeType.FLOAT3, 0, 32)
-                .attribute(VertexBuffer.VertexAttribute.NORMAL, 0,
-                        VertexBuffer.AttributeType.FLOAT3, 12, 32)
+                        VertexBuffer.AttributeType.FLOAT3, 0, 20)
                 .attribute(VertexBuffer.VertexAttribute.UV0, 0,
-                        VertexBuffer.AttributeType.FLOAT2, 24, 32)
+                        VertexBuffer.AttributeType.FLOAT2, 12, 20)
                 .build(engine);
         runtimeCeilingVertexBuffer.setBufferAt(engine, 0, vertexData);
 
