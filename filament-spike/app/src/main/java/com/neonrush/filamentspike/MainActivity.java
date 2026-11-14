@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 41 | FPS --");
+        compactStatus.setText("BUILD 42 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -236,43 +236,50 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             try {
                 int instance = rm.getInstance(entity);
                 int count = rm.getPrimitiveCount(instance);
-                out.append("Node ").append(asset.getName(entity))
+                String nodeName = String.valueOf(asset.getName(entity));
+                String lowerName = nodeName.toLowerCase(Locale.US);
+                out.append("Node ").append(nodeName)
                         .append(" | primitives ").append(count).append('\n');
                 for (int p = 0; p < count; p++) {
                     MaterialInstance material = rm.getMaterialInstanceAt(instance, p);
                     out.append("  [").append(p).append("] ")
                             .append(material == null ? "(no material)" : material.getName());
-                    if (material != null && p <= 2) {
+                    if (material != null) {
                         try {
-                            // Bright matte test: isolate lighting from dark-metallic material response.
-                            float[][] colors = {
-                                    {1.0f, 0.025f, 0.025f, 1.0f},
-                                    {0.025f, 1.0f, 0.025f, 1.0f},
-                                    {1.0f, 0.0f, 1.0f, 1.0f}
-                            };
-                            float[] c = colors[p];
-                            material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
-                            material.setParameter("metallicFactor", 0.0f);
-                            material.setParameter("roughnessFactor", 1.0f);
-                            if (p == 2) {
-                                // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
+                            // Apply diagnostic colors by named node, not local primitive index.
+                            // This remains correct when each corridor surface is its own mesh/node.
+                            if (lowerName.contains("ceiling")) {
                                 material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
-                                material.setParameter("emissiveFactor", 20.0f, 0.0f, 20.0f);
-                                ceilingTestMessage = "P2 BRIGHT MAGENTA EMISSIVE OVERRIDE APPLIED";
-                                out.append(" | P2 MAGENTA EMISSIVE TEST");
-                            } else {
-                                out.append(" | MATTE PBR OVERRIDE APPLIED");
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                try {
+                                    material.setParameter("emissiveFactor", 8.0f, 0.0f, 8.0f);
+                                } catch (Throwable ignored) {
+                                    // KHR_materials_unlit ceiling is already independent of scene lighting.
+                                }
+                                ceilingTestMessage = "SEPARATE CEILING NODE: MAGENTA UNLIT TEST";
+                                out.append(" | MAGENTA UNLIT CEILING TEST");
+                            } else if (lowerName.contains("floor")) {
+                                material.setParameter("baseColorFactor", 1.0f, 0.025f, 0.025f, 1.0f);
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                out.append(" | RED FLOOR TEST");
+                            } else if (lowerName.contains("wall")) {
+                                material.setParameter("baseColorFactor", 0.025f, 1.0f, 0.025f, 1.0f);
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                out.append(" | GREEN WALL TEST");
                             }
                         } catch (Throwable ex) {
-                            if (p == 2) {
-                                ceilingTestMessage = "P2 EMISSIVE OVERRIDE FAILED: "
+                            if (lowerName.contains("ceiling")) {
+                                ceilingTestMessage = "CEILING MATERIAL OVERRIDE FAILED: "
                                         + ex.getClass().getSimpleName() + ": "
                                         + String.valueOf(ex.getMessage());
                             }
-                            out.append(" | PBR override FAILED: ")
+                            out.append(" | material override FAILED: ")
                                     .append(ex.getClass().getSimpleName()).append(": ")
                                     .append(String.valueOf(ex.getMessage()));
-                            Log.w("NeonRushFilament", "PBR override failed for primitive " + p, ex);
+                            Log.w("NeonRushFilament", "Material override failed for " + nodeName, ex);
                         }
                     }
                     out.append('\n');
@@ -602,7 +609,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 41 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 42 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -618,7 +625,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 41 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 42 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -679,7 +686,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 41 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 42 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
