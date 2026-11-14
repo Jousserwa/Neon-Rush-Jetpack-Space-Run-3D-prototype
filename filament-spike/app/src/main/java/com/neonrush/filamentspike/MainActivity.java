@@ -14,6 +14,10 @@ import android.widget.TextView;
 
 import com.google.android.filament.Box;
 import com.google.android.filament.Engine;
+import com.google.android.filament.EntityManager;
+import com.google.android.filament.IndexBuffer;
+
+import com.google.android.filament.VertexBuffer;
 import com.google.android.filament.IndirectLight;
 import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
@@ -61,6 +65,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private String modelInfo = "Waiting for GLB diagnostics…";
     private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
+    private VertexBuffer runtimeCeilingVertexBuffer;
+    private IndexBuffer runtimeCeilingIndexBuffer;
+    private int runtimeCeilingEntity = 0;
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
     private final float ambientIntensity = 12000.0f;
@@ -232,6 +239,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 eyeZ, targetZ, nearPlane, farPlane));
         out.append("Renderable entities: ").append(entities.length).append('\n');
 
+        MaterialInstance ceilingMaterialForRuntime = null;
         for (int entity : entities) {
             try {
                 int instance = rm.getInstance(entity);
@@ -245,6 +253,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     out.append("  [").append(p).append("] ")
                             .append(material == null ? "(no material)" : material.getName());
                     if (material != null) {
+                        if (lowerName.contains("ceiling") && ceilingMaterialForRuntime == null) {
+                            ceilingMaterialForRuntime = material;
+                        }
                         try {
                             // Apply diagnostic colors by named node, not local primitive index.
                             // This remains correct when each corridor surface is its own mesh/node.
@@ -290,8 +301,71 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 Log.w("NeonRushFilament", "Renderable inspection failed", e);
             }
         }
+        if (ceilingMaterialForRuntime != null) {
+            try {
+                createRuntimeCeilingQuad(ceilingMaterialForRuntime);
+                ceilingTestMessage = "RUNTIME CEILING QUAD BUILT AT Y=3.98 | MAGENTA MATERIAL";
+                out.append("Runtime ceiling quad: BUILT at Y=3.98 using loaded ceiling material\n");
+            } catch (Throwable e) {
+                ceilingTestMessage = "RUNTIME CEILING QUAD FAILED: "
+                        + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
+                out.append("Runtime ceiling quad FAILED: ").append(e.getClass().getSimpleName())
+                        .append(": ").append(String.valueOf(e.getMessage())).append('\n');
+                Log.e("NeonRushFilament", "Runtime ceiling quad failed", e);
+            }
+        } else {
+            ceilingTestMessage = "NO LOADED CEILING NODE/MATERIAL: RUNTIME QUAD NOT CREATED";
+            out.append("Runtime ceiling quad NOT CREATED: no loaded ceiling material found\n");
+        }
         Log.i("NeonRushFilament", out.toString());
         return out.toString();
+    }
+
+    // Fallback geometry: a separate Filament renderable, not part of the GLB mesh.
+    // Uses the loaded GLB ceiling's magenta material so this isolates mesh/renderable creation.
+    private void createRuntimeCeilingQuad(MaterialInstance material) {
+        if (runtimeCeilingEntity != 0) return;
+        Engine engine = viewer.getEngine();
+        float[] vertices = {
+                -2.5f, 3.98f,  3.0f,
+                -2.5f, 3.98f, -10.0f,
+                 2.5f, 3.98f, -10.0f,
+                 2.5f, 3.98f,  3.0f
+        };
+        ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
+                .order(ByteOrder.nativeOrder());
+        for (float value : vertices) vertexData.putFloat(value);
+        vertexData.flip();
+
+        runtimeCeilingVertexBuffer = new VertexBuffer.Builder()
+                .bufferCount(1)
+                .vertexCount(4)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
+                        VertexBuffer.AttributeType.FLOAT3, 0, 12)
+                .build(engine);
+        runtimeCeilingVertexBuffer.setBufferAt(engine, 0, vertexData);
+
+        ByteBuffer indexData = ByteBuffer.allocateDirect(6 * 2)
+                .order(ByteOrder.nativeOrder());
+        indexData.putShort((short) 0).putShort((short) 1).putShort((short) 2)
+                .putShort((short) 0).putShort((short) 2).putShort((short) 3).flip();
+        runtimeCeilingIndexBuffer = new IndexBuffer.Builder()
+                .indexCount(6)
+                .bufferType(IndexBuffer.Builder.IndexType.USHORT)
+                .build(engine);
+        runtimeCeilingIndexBuffer.setBuffer(engine, indexData);
+
+        runtimeCeilingEntity = EntityManager.get().create();
+        new RenderableManager.Builder(1)
+                .boundingBox(new Box(0.0f, 3.98f, -3.5f, 2.5f, 0.02f, 6.5f))
+                .geometry(0, RenderableManager.PrimitiveType.TRIANGLES,
+                        runtimeCeilingVertexBuffer, runtimeCeilingIndexBuffer, 0, 6)
+                .material(0, material)
+                .culling(false)
+                .castShadows(false)
+                .receiveShadows(false)
+                .build(engine, runtimeCeilingEntity);
+        viewer.getScene().addEntity(runtimeCeilingEntity);
     }
 
     // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
@@ -722,6 +796,20 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         running = false;
         if (viewer != null) {
             try {
+                if (runtimeCeilingEntity != 0) {
+                    viewer.getScene().remove(runtimeCeilingEntity);
+                    viewer.getEngine().destroyEntity(runtimeCeilingEntity);
+                    EntityManager.get().destroy(runtimeCeilingEntity);
+                    runtimeCeilingEntity = 0;
+                }
+                if (runtimeCeilingVertexBuffer != null) {
+                    viewer.getEngine().destroyVertexBuffer(runtimeCeilingVertexBuffer);
+                    runtimeCeilingVertexBuffer = null;
+                }
+                if (runtimeCeilingIndexBuffer != null) {
+                    viewer.getEngine().destroyIndexBuffer(runtimeCeilingIndexBuffer);
+                    runtimeCeilingIndexBuffer = null;
+                }
                 if (ambientLight != null) {
                     viewer.getEngine().destroyIndirectLight(ambientLight);
                     ambientLight = null;
