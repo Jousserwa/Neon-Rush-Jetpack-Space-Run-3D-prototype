@@ -18,7 +18,8 @@ import com.google.android.filament.IndirectLight;
 import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
-import com.google.android.filament.Skybox;\nimport com.google.android.filament.View;
+import com.google.android.filament.Skybox;
+import com.google.android.filament.View;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.gltfio.FilamentAsset;
 import com.google.android.filament.gltfio.Gltfio;
@@ -169,7 +170,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             viewer.getView().setMultiSampleAntiAliasingOptions(msaa);
 
             // Disable shadow mapping during this low-cost geometry diagnostic.
-            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            viewer.getView().setShadowingEnabled(false);
+
+            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
