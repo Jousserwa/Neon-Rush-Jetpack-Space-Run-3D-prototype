@@ -162,7 +162,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             // Opaque navy clear fallback; BG TEST will toggle clear and Skybox together.
             Renderer.ClearOptions clearOptions = new Renderer.ClearOptions();
             clearOptions.clear = true;
-            clearOptions.clearColor = new float[] {0.0f, 0.0f, 0.1f, 1.0f};
+            clearOptions.setClearColor(0.0, 0.0, 0.1, 1.0);
             viewer.getRenderer().setClearOptions(clearOptions);
             viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
             viewer.getScene().getSkybox().setColor(
@@ -686,7 +686,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         viewer.getScene().getSkybox().setColor(r, g, b, 1.0f);
         Renderer.ClearOptions options = new Renderer.ClearOptions();
         options.clear = true;
-        options.clearColor = new float[] {r, g, b, 1.0f};
+        options.setClearColor(r, g, b, 1.0);
         viewer.getRenderer().setClearOptions(options);
         if (bgToggle != null) bgToggle.setText(enabled ? "BG YELLOW ON" : "BG TEST");
         if (status != null) {
