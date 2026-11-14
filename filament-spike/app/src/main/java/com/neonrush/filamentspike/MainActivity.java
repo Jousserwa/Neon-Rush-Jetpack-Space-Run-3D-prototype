@@ -246,8 +246,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         int[] entities = asset.getRenderableEntities();
         RenderableManager rm = viewer.getEngine().getRenderableManager();
-        out.append("GLB renderables=").append(entities.length)
-                .append(" | Scene membership is checked per entity below.").append('\n');
         StringBuilder out = new StringBuilder();
         out.append(String.format(Locale.US,
                 "Bounds center %s | half %s\nSize %.2f × %.2f × %.2f\n",
