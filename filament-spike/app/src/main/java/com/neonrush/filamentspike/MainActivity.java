@@ -52,6 +52,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int callbacks;
     private int renderedFrames;
     private int skippedFrames;
+    private long renderCpuNanosSum;
+    private long renderCpuNanosMax;
+    private int renderCpuSamples;
+    private String ceilingTestMessage = "P2 ceiling test not applied";
     private String modelInfo = "Waiting for GLB diagnostics…";
     private SurfaceView renderSurface;
     private final float[] skyboxColor = {0.035f, 0.075f, 0.14f, 1.0f};
@@ -89,7 +93,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 34 | FPS --");
+        compactStatus.setText("BUILD 35 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -220,14 +224,26 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             float[][] colors = {
                                     {1.0f, 0.025f, 0.025f, 1.0f},
                                     {0.025f, 1.0f, 0.025f, 1.0f},
-                                    {0.025f, 0.10f, 1.0f, 1.0f}
+                                    {1.0f, 0.0f, 1.0f, 1.0f}
                             };
                             float[] c = colors[p];
                             material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
                             material.setParameter("metallicFactor", 0.0f);
                             material.setParameter("roughnessFactor", 1.0f);
-                            out.append(" | MATTE PBR OVERRIDE APPLIED");
+                            if (p == 2) {
+                                // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
+                                material.setParameter("emissiveFactor", 4.0f, 0.0f, 4.0f);
+                                ceilingTestMessage = "P2 MAGENTA + EMISSIVE OVERRIDE APPLIED";
+                                out.append(" | P2 MAGENTA EMISSIVE TEST");
+                            } else {
+                                out.append(" | MATTE PBR OVERRIDE APPLIED");
+                            }
                         } catch (Throwable ex) {
+                            if (p == 2) {
+                                ceilingTestMessage = "P2 EMISSIVE OVERRIDE FAILED: "
+                                        + ex.getClass().getSimpleName() + ": "
+                                        + String.valueOf(ex.getMessage());
+                            }
                             out.append(" | PBR override FAILED: ")
                                     .append(ex.getClass().getSimpleName()).append(": ")
                                     .append(String.valueOf(ex.getMessage()));
@@ -387,13 +403,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     "Exposure f/16 | 1/125s | ISO100\n" +
                     "Eye (%.1f, %.1f, %.1f) target (%.1f, %.1f, %.1f)\n" +
                     "Up (%.1f, %.1f, %.1f) | vertical FOV %.1f°\n" +
-                    "Near %.2f | far %.1f | surface %dx%d | aspect %.4f\n",
-                    lm.hasComponent(entity), lm.getIntensity(instance), Arrays.toString(direction),
+                    "Near %.2f | far %.1f | surface %dx%d | aspect %.4f\n" +
+                    "%s\n",
+                    lm.getIntensity(instance) > 0.5f, lm.getIntensity(instance), Arrays.toString(direction),
                     viewer.getScene().getIndirectLight() != null, ambientIntensity,
                     viewer.getScene().getSkybox() != null,
                     skyboxColor[0], skyboxColor[1], skyboxColor[2],
                     eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
-                    upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect);
+                    upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
+                    ceilingTestMessage);
         } catch (Throwable e) {
             return "BUILD 30 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
@@ -441,7 +459,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         if (!running || viewer == null) return;
         try {
             callbacks++;
-            if (viewer.render(frameTimeNanos)) renderedFrames++;
+            long renderStartNanos = System.nanoTime();
+            boolean accepted = viewer.render(frameTimeNanos);
+            long renderCostNanos = System.nanoTime() - renderStartNanos;
+            renderCpuNanosSum += renderCostNanos;
+            renderCpuSamples++;
+            if (renderCostNanos > renderCpuNanosMax) renderCpuNanosMax = renderCostNanos;
+            if (accepted) renderedFrames++;
             else skippedFrames++;
 
             long elapsed = frameTimeNanos - windowStart;
@@ -453,13 +477,19 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         "BUILD 34 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
-                        "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
-                        acceptedFps, callbackFps, falseReturns)
+                        "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
+                        "render() CPU avg %.2f ms | max %.2f ms (not GPU time)\n",
+                        acceptedFps, callbackFps, falseReturns,
+                        renderCpuSamples > 0 ? (renderCpuNanosSum / (double) renderCpuSamples) / 1_000_000.0 : 0.0,
+                        renderCpuNanosMax / 1_000_000.0)
                         + lightingSummary()
                         + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
                 callbacks = 0;
                 renderedFrames = 0;
                 skippedFrames = 0;
+                renderCpuNanosSum = 0;
+                renderCpuNanosMax = 0;
+                renderCpuSamples = 0;
                 windowStart = frameTimeNanos;
             }
             Choreographer.getInstance().postFrameCallback(this);
