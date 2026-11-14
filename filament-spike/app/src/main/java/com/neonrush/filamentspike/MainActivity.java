@@ -8,7 +8,6 @@ import android.view.SurfaceView;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import com.google.android.filament.Engine;
-import com.google.android.filament.Float3;
 import com.google.android.filament.Skybox;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.utils.ModelViewer;
@@ -24,7 +23,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
   try{viewer=new ModelViewer(surface, Engine.create(), new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);surface.setOnTouchListener(viewer);
    viewer.getScene().setSkybox(new Skybox.Builder().build(viewer.getEngine()));viewer.getScene().getSkybox().setColor(.008f,.015f,.028f,1f);
    byte[] encoded=readAsset("corridor.glb.b64");byte[] glb=Base64.decode(new String(encoded,java.nio.charset.StandardCharsets.US_ASCII),Base64.DEFAULT);
-   viewer.loadModelGlb(ByteBuffer.wrap(glb));viewer.transformToUnitCube(new Float3(0f,0f,-4f));status.setText("NEON RUSH • FILAMENT TEST\nDrag to orbit • FPS: waiting");
+   viewer.loadModelGlb(ByteBuffer.wrap(glb));status.setText("NEON RUSH • FILAMENT TEST\nDrag to orbit • FPS: waiting");
   }catch(Exception e){status.setText("FILAMENT TEST ERROR\n"+e.getClass().getSimpleName()+": "+e.getMessage());}
  }
  private byte[] readAsset(String n)throws Exception{try(InputStream in=getAssets().open(n);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[4096];int k;while((k=in.read(b))>0)out.write(b,0,k);return out.toByteArray();}}
