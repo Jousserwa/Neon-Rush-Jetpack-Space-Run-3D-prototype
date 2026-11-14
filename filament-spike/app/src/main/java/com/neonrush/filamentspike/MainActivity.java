@@ -63,7 +63,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private SurfaceView renderSurface;
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
-    private final float ambientIntensity = 3000.0f;
+    private final float ambientIntensity = 12000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
     private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
     private final double upX = 0.0, upY = 1.0, upZ = 0.0;
@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 40 | FPS --");
+        compactStatus.setText("BUILD 41 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -256,7 +256,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             material.setParameter("roughnessFactor", 1.0f);
                             if (p == 2) {
                                 // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
-                                material.setParameter("emissiveFactor", 50.0f, 0.0f, 50.0f);
+                                material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
+                                material.setParameter("emissiveFactor", 20.0f, 0.0f, 20.0f);
                                 ceilingTestMessage = "P2 BRIGHT MAGENTA EMISSIVE OVERRIDE APPLIED";
                                 out.append(" | P2 MAGENTA EMISSIVE TEST");
                             } else {
@@ -423,6 +424,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int posIndex = attrs.getInt("POSITION");
                 JSONObject pos = accessors.getJSONObject(posIndex);
                 JSONObject posView = views.getJSONObject(pos.getInt("bufferView"));
+                int normalIndex = attrs.optInt("NORMAL", -1);
+                JSONObject normal = normalIndex >= 0 ? accessors.getJSONObject(normalIndex) : null;
+                JSONObject normalView = normal == null ? null
+                        : views.getJSONObject(normal.getInt("bufferView"));
 
                 if (pos.optInt("componentType") != 5126
                         || !"VEC3".equals(pos.optString("type"))) {
@@ -436,6 +441,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + pos.optInt("byteOffset", 0);
                 int posStride = posView.optInt("byteStride", 12);
                 int vertexCount = pos.getInt("count");
+                int normalBase = normal == null ? 0
+                        : normalView.optInt("byteOffset", 0) + normal.optInt("byteOffset", 0);
+                int normalStride = normal == null ? 0 : normalView.optInt("byteStride", 12);
 
                 int[] indices;
                 int indexAccessor = primitive.optInt("indices", -1);
@@ -486,10 +494,39 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             float y = bin.getFloat(at + 4);
                             float z = bin.getFloat(at + 8);
                             out.append(String.format(Locale.US,
-                                    "V%d(%.4f,%.4f,%.4f) ",
+                                    "V%d(%.4f,%.4f,%.4f)",
                                     vertex, x, y, z));
+                            if (normal != null && normal.optInt("componentType") == 5126) {
+                                int na = normalBase + vertex * normalStride;
+                                out.append(String.format(Locale.US, " N(%.3f,%.3f,%.3f)",
+                                        bin.getFloat(na), bin.getFloat(na + 4),
+                                        bin.getFloat(na + 8)));
+                            }
+                            out.append("  ");
                         }
-                        out.append('\n');
+                        int a = indices[t], b = indices[t + 1], d = indices[t + 2];
+                        int aa = posBase + a * posStride;
+                        int bb = posBase + b * posStride;
+                        int dd = posBase + d * posStride;
+                        float abx = bin.getFloat(bb) - bin.getFloat(aa);
+                        float aby = bin.getFloat(bb + 4) - bin.getFloat(aa + 4);
+                        float abz = bin.getFloat(bb + 8) - bin.getFloat(aa + 8);
+                        float adx = bin.getFloat(dd) - bin.getFloat(aa);
+                        float ady = bin.getFloat(dd + 4) - bin.getFloat(aa + 4);
+                        float adz = bin.getFloat(dd + 8) - bin.getFloat(aa + 8);
+                        float nx = aby * adz - abz * ady;
+                        float ny = abz * adx - abx * adz;
+                        float nz = abx * ady - aby * adx;
+                        float area = 0.5f * (float) Math.sqrt(nx*nx + ny*ny + nz*nz);
+                        float windingDot = 0.0f;
+                        if (normal != null) {
+                            int na = normalBase + a * normalStride;
+                            windingDot = nx * bin.getFloat(na)
+                                    + ny * bin.getFloat(na + 4) + nz * bin.getFloat(na + 8);
+                        }
+                        out.append(String.format(Locale.US,
+                                "area=%.4f cross=(%.3f,%.3f,%.3f) winding·normal=%.4f\n",
+                                area, nx, ny, nz, windingDot));
                     }
                 }
 
@@ -565,7 +602,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 40 • MSAA / LOW-COST TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 41 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -581,7 +618,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 40 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 41 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -642,7 +679,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 40 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 41 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
