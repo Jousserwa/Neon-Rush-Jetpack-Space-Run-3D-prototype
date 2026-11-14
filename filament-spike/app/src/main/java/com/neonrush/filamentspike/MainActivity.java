@@ -285,9 +285,23 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         return a == null ? "(not set)" : a.toString();
     }
 
+    private String lightingSummary() {
+        try {
+            LightManager lm = viewer.getEngine().getLightManager();
+            int entity = viewer.getLight();
+            int instance = lm.getInstance(entity);
+            float[] direction = new float[3];
+            lm.getDirection(instance, direction);
+            return String.format(Locale.US,
+                    "BUILD 29 • Skybox ON • ambient SH ON\\nSUN %s | %.0f lux | dir %s\\nExposure f/16 • 1/125s • ISO100\\n",
+                    lm.hasComponent(entity), lm.getIntensity(instance), Arrays.toString(direction));
+        } catch (Throwable e) {
+            return "BUILD 29 • lighting diagnostics unavailable\\n";
+        }
+    }
+
     private void updateStatus(String heading) {
-        status.setText(heading + "\nMatte PBR + GLB structure test\n"
-                + "Existing SUN retained; no IBL yet\n" + modelInfo);
+        status.setText(heading + "\\n" + lightingSummary() + modelInfo);
     }
 
     private void showFailure(String stage, Throwable e) {
@@ -340,7 +354,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
                         acceptedFps, callbackFps, falseReturns)
-                        + "Matte PBR test • SUN retained • no IBL\n"
+                        + "BUILD 29 • lighting diagnostic active\n"
                         + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
                 callbacks = 0;
                 renderedFrames = 0;
