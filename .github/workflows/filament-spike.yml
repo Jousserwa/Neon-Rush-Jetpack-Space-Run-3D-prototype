@@ -1,4 +1,4 @@
-name: Filament Renderer Spike
+name: Filament Renderer Spike # Includes GLB camera and geometry diagnostics
 
 on:
   push:
