@@ -337,6 +337,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         }
     }
 
+    private void updateStatus(String heading) {
+        status.setText(heading + "\n" + lightingSummary() + modelInfo);
+    }
+
     private void showFailure(String stage, Throwable e) {
         running = false;
         String detail = Log.getStackTraceString(e);
@@ -387,7 +391,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
                         acceptedFps, callbackFps, falseReturns)
-                        + "BUILD 29 • lighting diagnostic active\n"
+                        + lightingSummary()
                         + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
                 callbacks = 0;
                 renderedFrames = 0;
