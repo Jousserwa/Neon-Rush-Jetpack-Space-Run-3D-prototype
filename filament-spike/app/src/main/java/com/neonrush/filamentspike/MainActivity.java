@@ -13,6 +13,8 @@ import android.widget.TextView;
 
 import com.google.android.filament.Box;
 import com.google.android.filament.Engine;
+import com.google.android.filament.IndirectLight;
+import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
 import com.google.android.filament.Skybox;
@@ -34,6 +36,7 @@ import java.util.Locale;
 
 public final class MainActivity extends Activity implements Choreographer.FrameCallback {
     private ModelViewer viewer;
+    private IndirectLight ambientLight;
     private TextView status;
     private boolean running;
     private long windowStart;
@@ -71,8 +74,25 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             Gltfio.init();
             viewer = new ModelViewer(surface, Engine.create(),
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
-            viewer.getScene().setSkybox(new Skybox.Builder().build(viewer.getEngine()));
+            Engine engine = viewer.getEngine();
+            viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
             viewer.getScene().getSkybox().setColor(.035f, .075f, .14f, 1f);
+
+            // Explicit sunny-f/16 exposure for the existing 100,000-lux ModelViewer SUN.
+            viewer.getCamera().setExposure(16.0f, 1.0f / 125.0f, 100.0f);
+
+            // Aim the existing SUN down and forward through the corridor, not straight down.
+            LightManager lightManager = engine.getLightManager();
+            int sunInstance = lightManager.getInstance(viewer.light);
+            lightManager.setDirection(sunInstance, 0.0f, -0.45f, -0.89f);
+
+            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            float sh0 = 0.282095f;
+            ambientLight = new IndirectLight.Builder()
+                    .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
+                    .intensity(30000.0f)
+                    .build(engine);
+            viewer.getScene().setIndirectLight(ambientLight);
 
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
@@ -131,16 +151,16 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             .append(material == null ? "(no material)" : material.getName());
                     if (material != null && p <= 2) {
                         try {
-                            // Diagnostic only: replace dark metallic PBR values while retaining ModelViewer SUN.
+                            // Bright matte test: isolate lighting from dark-metallic material response.
                             float[][] colors = {
-                                    {0.12f, 0.15f, 0.19f, 1.0f},
-                                    {0.16f, 0.20f, 0.25f, 1.0f},
-                                    {0.12f, 0.15f, 0.20f, 1.0f}
+                                    {0.48f, 0.50f, 0.54f, 1.0f},
+                                    {0.42f, 0.46f, 0.52f, 1.0f},
+                                    {0.38f, 0.42f, 0.50f, 1.0f}
                             };
                             float[] c = colors[p];
                             material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
-                            material.setParameter("metallicFactor", 0.05f);
-                            material.setParameter("roughnessFactor", 0.72f);
+                            material.setParameter("metallicFactor", 0.0f);
+                            material.setParameter("roughnessFactor", 0.80f);
                             out.append(" | MATTE PBR OVERRIDE APPLIED");
                         } catch (Throwable ex) {
                             out.append(" | PBR override FAILED: ")
@@ -345,6 +365,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         running = false;
         if (viewer != null) {
             try {
+                if (ambientLight != null) {
+                    viewer.getEngine().destroyIndirectLight(ambientLight);
+                    ambientLight = null;
+                }
                 viewer.destroy();
             } catch (Throwable e) {
                 Log.e("NeonRushFilament", "Destroy failed", e);
