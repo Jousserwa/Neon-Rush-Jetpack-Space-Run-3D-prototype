@@ -261,8 +261,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         try {
                             // Apply diagnostic colors by named node, not local primitive index.
                             // This remains correct when each corridor surface is its own mesh/node.
-                            if (lowerName.contains("cyan") || lowerName.contains("strip")) {
-                                // Restore the strip instance independently from the Skybox.
+                            if (lowerName.contains("cyan")) {
+                                // Only the cyan strip node receives the cyan override.
                                 material.setParameter("baseColorFactor", 0.02f, 0.32f, 0.42f, 1.0f);
                                 material.setParameter("emissiveFactor", 0.0f, 0.75f, 1.0f);
                                 out.append(" | CYAN STRIP OVERRIDE base=(0.02,0.32,0.42,1) emissive=(0,0.75,1)");
@@ -271,6 +271,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                         + " baseColorFactor=(0.02,0.32,0.42,1)"
                                         + " emissiveFactor=(0,0.75,1)"
                                         + " skyboxColor=" + Arrays.toString(skyboxColor));
+                            } else if (lowerName.contains("amber")) {
+                                // Preserve the warning strip's own amber material; never share cyan.
+                                material.setParameter("baseColorFactor", 0.5f, 0.18f, 0.025f, 1.0f);
+                                material.setParameter("emissiveFactor", 1.0f, 0.22f, 0.015f);
+                                out.append(" | AMBER STRIP OVERRIDE base=(0.5,0.18,0.025,1) emissive=(1,0.22,0.015)");
+                                Log.i("NeonRushMaterial", "node=" + nodeName
+                                        + " instance=" + material.getName()
+                                        + " baseColorFactor=(0.5,0.18,0.025,1)"
+                                        + " emissiveFactor=(1,0.22,0.015)");
                             } else if (lowerName.contains("ceiling")) {
                                 material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
                                 material.setParameter("metallicFactor", 0.0f);
