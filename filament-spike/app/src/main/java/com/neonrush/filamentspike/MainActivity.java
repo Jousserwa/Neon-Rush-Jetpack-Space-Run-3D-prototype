@@ -45,6 +45,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private TextView sunToggle;
     private boolean detailsExpanded = false;
     private boolean sunEnabled = true;
+    private boolean debugBackground = false;
     private int sunInstance = -1;
     private final float sunIntensityLux = 100000.0f;
     private boolean running;
@@ -113,6 +114,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         controls.addView(compactStatus, new LinearLayout.LayoutParams(0, -2, 1f));
         controls.addView(detailsToggle, new LinearLayout.LayoutParams(-2, -2));
         controls.addView(sunToggle, new LinearLayout.LayoutParams(-2, -2));
+        TextView bgToggle = new TextView(this);
+        bgToggle.setTextColor(0xFF7FEAFF);
+        bgToggle.setTextSize(10);
+        bgToggle.setPadding(dp(8), dp(7), dp(8), dp(7));
+        bgToggle.setText("BG TEST");
+        bgToggle.setOnClickListener(v -> setDebugBackground(!debugBackground));
+        controls.addView(bgToggle, new LinearLayout.LayoutParams(-2, -2));
         overlay.addView(controls, new LinearLayout.LayoutParams(-1, -2));
         status = new TextView(this);
         status.setTextColor(-1);
@@ -160,7 +168,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
-            viewer.loadModelGlb(ByteBuffer.wrap(glb));
+            dumpTriangleGeometry(glb);\n            viewer.loadModelGlb(ByteBuffer.wrap(glb));
 
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
@@ -232,7 +240,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             material.setParameter("roughnessFactor", 1.0f);
                             if (p == 2) {
                                 // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
-                                material.setParameter("emissiveFactor", 4.0f, 0.0f, 4.0f);
+                                material.setParameter("emissiveFactor", 10.0f, 0.0f, 10.0f);
                                 ceilingTestMessage = "P2 MAGENTA + EMISSIVE OVERRIDE APPLIED";
                                 out.append(" | P2 MAGENTA EMISSIVE TEST");
                             } else {
@@ -349,6 +357,146 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         String result = out.toString();
         Log.i("NeonRushFilament", result);
         return result;
+    }
+
+
+    // Dump every indexed triangle using the actual POSITION and index accessors.
+    // The current embedded corridor GLB uses one BIN chunk and FLOAT VEC3 positions.
+    private void dumpTriangleGeometry(byte[] glb) throws Exception {
+        ByteBuffer file = ByteBuffer.wrap(glb).order(ByteOrder.LITTLE_ENDIAN);
+        if (file.getInt(0) != 0x46546C67) {
+            throw new IllegalArgumentException("Not a GLB file");
+        }
+
+        JSONObject root = null;
+        ByteBuffer bin = null;
+        int offset = 12;
+
+        while (offset + 8 <= glb.length) {
+            int length = file.getInt(offset);
+            int type = file.getInt(offset + 4);
+            offset += 8;
+            if (length < 0 || offset + length > glb.length) {
+                throw new IllegalArgumentException("Invalid GLB chunk length");
+            }
+            if (type == 0x4E4F534A) {
+                root = new JSONObject(new String(
+                        glb, offset, length, StandardCharsets.UTF_8
+                ).replace("\\u0000", "").trim());
+            } else if (type == 0x004E4942) {
+                bin = ByteBuffer.wrap(glb, offset, length)
+                        .slice().order(ByteOrder.LITTLE_ENDIAN);
+            }
+            offset += length;
+        }
+
+        if (root == null || bin == null) {
+            throw new IllegalStateException("GLB JSON or BIN chunk missing");
+        }
+
+        JSONArray meshes = root.getJSONArray("meshes");
+        JSONArray views = root.getJSONArray("bufferViews");
+        JSONArray accessors = root.getJSONArray("accessors");
+
+        for (int m = 0; m < meshes.length(); m++) {
+            JSONArray primitives = meshes.getJSONObject(m).getJSONArray("primitives");
+            for (int p = 0; p < primitives.length(); p++) {
+                JSONObject primitive = primitives.getJSONObject(p);
+                JSONObject attrs = primitive.getJSONObject("attributes");
+                int posIndex = attrs.getInt("POSITION");
+                JSONObject pos = accessors.getJSONObject(posIndex);
+                JSONObject posView = views.getJSONObject(pos.getInt("bufferView"));
+
+                if (pos.optInt("componentType") != 5126
+                        || !"VEC3".equals(pos.optString("type"))) {
+                    Log.e("NeonRushGeometry", "P" + p
+                            + " POSITION is not FLOAT VEC3");
+                    continue;
+                }
+
+                int posBase = posView.optInt("byteOffset", 0)
+                        + pos.optInt("byteOffset", 0);
+                int posStride = posView.optInt("byteStride", 12);
+                int vertexCount = pos.getInt("count");
+
+                int[] indices;
+                int indexAccessor = primitive.optInt("indices", -1);
+                if (indexAccessor >= 0) {
+                    JSONObject idx = accessors.getJSONObject(indexAccessor);
+                    JSONObject idxView = views.getJSONObject(idx.getInt("bufferView"));
+                    int idxBase = idxView.optInt("byteOffset", 0)
+                            + idx.optInt("byteOffset", 0);
+                    int component = idx.getInt("componentType");
+                    int count = idx.getInt("count");
+                    int indexStride = idxView.optInt("byteStride",
+                            component == 5121 ? 1 : component == 5123 ? 2 : 4);
+                    indices = new int[count];
+
+                    for (int i = 0; i < count; i++) {
+                        int at = idxBase + i * indexStride;
+                        if (component == 5121) indices[i] = bin.get(at) & 0xFF;
+                        else if (component == 5123) indices[i] = bin.getShort(at) & 0xFFFF;
+                        else if (component == 5125) indices[i] = bin.getInt(at);
+                        else throw new IllegalArgumentException(
+                                "Unsupported index component " + component);
+                    }
+                } else {
+                    indices = new int[vertexCount];
+                    for (int i = 0; i < vertexCount; i++) indices[i] = i;
+                }
+
+                int mode = primitive.optInt("mode", 4);
+                StringBuilder out = new StringBuilder();
+                out.append("MESH ").append(m).append(" P").append(p)
+                        .append(" mode=").append(mode)
+                        .append(" vertices=").append(vertexCount)
+                        .append(" indices=").append(indices.length).append('\\n');
+
+                if (mode != 4) {
+                    out.append("Not TRIANGLES mode; triangle dump skipped.\\n");
+                } else {
+                    for (int t = 0; t + 2 < indices.length; t += 3) {
+                        out.append("T").append(t / 3).append(": ");
+                        for (int c = 0; c < 3; c++) {
+                            int vertex = indices[t + c];
+                            if (vertex < 0 || vertex >= vertexCount) {
+                                throw new IllegalArgumentException(
+                                        "P" + p + " index out of range: " + vertex);
+                            }
+                            int at = posBase + vertex * posStride;
+                            float x = bin.getFloat(at);
+                            float y = bin.getFloat(at + 4);
+                            float z = bin.getFloat(at + 8);
+                            out.append(String.format(Locale.US,
+                                    "V%d(%.4f,%.4f,%.4f) ",
+                                    vertex, x, y, z));
+                        }
+                        out.append('\\n');
+                    }
+                }
+
+                String dump = out.toString();
+                for (int start = 0; start < dump.length(); start += 3000) {
+                    Log.i("NeonRushGeometry", dump.substring(
+                            start, Math.min(start + 3000, dump.length())));
+                }
+            }
+        }
+    }
+
+    private void setDebugBackground(boolean enabled) {
+        debugBackground = enabled;
+        if (viewer == null || viewer.getScene().getSkybox() == null) return;
+
+        if (enabled) {
+            viewer.getScene().getSkybox().setColor(0.0f, 1.0f, 0.0f, 1.0f);
+        } else {
+            viewer.getScene().getSkybox().setColor(
+                    skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
+        }
+        if (status != null) {
+            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
+        }
     }
 
     private String accessorSummary(JSONArray accessors, int index) {
