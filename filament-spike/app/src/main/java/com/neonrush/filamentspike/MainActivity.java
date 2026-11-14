@@ -168,7 +168,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
-            dumpTriangleGeometry(glb);\n            viewer.loadModelGlb(ByteBuffer.wrap(glb));
+            dumpTriangleGeometry(glb);
+            viewer.loadModelGlb(ByteBuffer.wrap(glb));
 
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
@@ -450,7 +451,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 out.append("MESH ").append(m).append(" P").append(p)
                         .append(" mode=").append(mode)
                         .append(" vertices=").append(vertexCount)
-                        .append(" indices=").append(indices.length).append('\\n');
+                        .append(" indices=").append(indices.length).append('\n');
 
                 if (mode != 4) {
                     out.append("Not TRIANGLES mode; triangle dump skipped.\\n");
@@ -471,7 +472,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                     "V%d(%.4f,%.4f,%.4f) ",
                                     vertex, x, y, z));
                         }
-                        out.append('\\n');
+                        out.append('\n');
                     }
                 }
 
