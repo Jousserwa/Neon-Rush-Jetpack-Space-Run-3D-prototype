@@ -44,6 +44,16 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int renderedFrames;
     private int skippedFrames;
     private String modelInfo = "Waiting for GLB diagnostics…";
+    private SurfaceView renderSurface;
+    private final float[] skyboxColor = {0.035f, 0.075f, 0.14f, 1.0f};
+    private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
+    private final float ambientIntensity = 3000.0f;
+    private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
+    private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
+    private final double upX = 0.0, upY = 1.0, upZ = 0.0;
+    private final double verticalFov = 60.0;
+    private final double nearPlane = 0.1, farPlane = 50.0;
+    private volatile int surfaceWidth, surfaceHeight;
 
     @Override
     public void onCreate(Bundle b) {
@@ -51,7 +61,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         FrameLayout root = new FrameLayout(this);
         SurfaceView surface = new SurfaceView(this);
+        renderSurface = surface;
         root.addView(surface, new FrameLayout.LayoutParams(-1, -1));
+        surface.addOnLayoutChangeListener((v, left, top, right, bottom,
+                                           oldLeft, oldTop, oldRight, oldBottom) -> {
+            surfaceWidth = right - left;
+            surfaceHeight = bottom - top;
+        });
 
         status = new TextView(this);
         status.setTextColor(-1);
@@ -64,7 +80,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         panel.setFillViewport(false);
         panel.addView(status);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                dp(248), dp(220), Gravity.TOP | Gravity.END);
+                dp(300), dp(300), Gravity.TOP | Gravity.END);
         lp.topMargin = dp(10);
         lp.rightMargin = dp(10);
         root.addView(panel, lp);
@@ -76,7 +92,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
             Engine engine = viewer.getEngine();
             viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
-            viewer.getScene().getSkybox().setColor(.035f, .075f, .14f, 1f);
+            viewer.getScene().getSkybox().setColor(
+                    skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
 
             // Explicit sunny-f/16 exposure for the existing 100,000-lux ModelViewer SUN.
             viewer.getCamera().setExposure(16.0f, 1.0f / 125.0f, 100.0f);
@@ -84,13 +101,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             // Aim the existing SUN down and forward through the corridor, not straight down.
             LightManager lightManager = engine.getLightManager();
             int sunInstance = lightManager.getInstance(viewer.getLight());
-            lightManager.setDirection(sunInstance, 0.0f, -0.45f, -0.89f);
+            lightManager.setDirection(sunInstance,
+                    sunDirection[0], sunDirection[1], sunDirection[2]);
 
             // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
-                    .intensity(30000.0f)
+                    .intensity(ambientIntensity)
                     .build(engine);
             viewer.getScene().setIndirectLight(ambientLight);
 
@@ -116,16 +134,22 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         float[] center = bounds.getCenter();
         float[] half = bounds.getHalfExtent();
 
-        double cameraZ = 2.0;
-        double targetZ = -9.0;
-        double near = 0.1;
-        double far = 50.0;
         viewer.getCamera().lookAt(
-                center[0], center[1], cameraZ,
-                center[0], center[1], targetZ,
-                0.0, 1.0, 0.0);
-        viewer.setCameraNear((float) near);
-        viewer.setCameraFar((float) far);
+                eyeX, eyeY, eyeZ, targetX, targetY, targetZ, upX, upY, upZ);
+        viewer.setCameraNear((float) nearPlane);
+        viewer.setCameraFar((float) farPlane);
+        if (renderSurface != null) {
+            renderSurface.post(() -> {
+                int w = renderSurface.getWidth(), h = renderSurface.getHeight();
+                if (w > 0 && h > 0 && viewer != null) {
+                    viewer.getCamera().setProjection(verticalFov, (double) w / h,
+                            nearPlane, farPlane,
+                            com.google.android.filament.Camera.Fov.VERTICAL);
+                    surfaceWidth = w;
+                    surfaceHeight = h;
+                }
+            });
+        }
 
         int[] entities = asset.getRenderableEntities();
         RenderableManager rm = viewer.getEngine().getRenderableManager();
@@ -153,14 +177,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         try {
                             // Bright matte test: isolate lighting from dark-metallic material response.
                             float[][] colors = {
-                                    {0.48f, 0.50f, 0.54f, 1.0f},
-                                    {0.42f, 0.46f, 0.52f, 1.0f},
-                                    {0.38f, 0.42f, 0.50f, 1.0f}
+                                    {1.0f, 0.025f, 0.025f, 1.0f},
+                                    {0.025f, 1.0f, 0.025f, 1.0f},
+                                    {0.025f, 0.10f, 1.0f, 1.0f}
                             };
                             float[] c = colors[p];
                             material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
                             material.setParameter("metallicFactor", 0.0f);
-                            material.setParameter("roughnessFactor", 0.80f);
+                            material.setParameter("roughnessFactor", 1.0f);
                             out.append(" | MATTE PBR OVERRIDE APPLIED");
                         } catch (Throwable ex) {
                             out.append(" | PBR override FAILED: ")
@@ -290,18 +314,27 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             LightManager lm = viewer.getEngine().getLightManager();
             int entity = viewer.getLight();
             int instance = lm.getInstance(entity);
-            float[] direction = new float[3];
-            lm.getDirection(instance, direction);
+            float[] direction = lm.getDirection(instance, new float[3]);
+            int w = renderSurface == null ? surfaceWidth : renderSurface.getWidth();
+            int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
+            float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 29 • Skybox ON • ambient SH ON\\nSUN %s | %.0f lux | dir %s\\nExposure f/16 • 1/125s • ISO100\\n",
-                    lm.hasComponent(entity), lm.getIntensity(instance), Arrays.toString(direction));
+                    "BUILD 30 • RGB GEOMETRY TEST\\nSUN %s | %.0f lux | dir %s\\n" +
+                    "IndirectLight %s | %.0f | SH diffuse only\\n" +
+                    "Skybox %s | color %.3f %.3f %.3f\\n" +
+                    "Exposure f/16 | 1/125s | ISO100\\n" +
+                    "Eye (%.1f, %.1f, %.1f) target (%.1f, %.1f, %.1f)\\n" +
+                    "Up (%.1f, %.1f, %.1f) | vertical FOV %.1f°\\n" +
+                    "Near %.2f | far %.1f | surface %dx%d | aspect %.4f\\n",
+                    lm.hasComponent(entity), lm.getIntensity(instance), Arrays.toString(direction),
+                    viewer.getScene().getIndirectLight() != null, ambientIntensity,
+                    viewer.getScene().getSkybox() != null,
+                    skyboxColor[0], skyboxColor[1], skyboxColor[2],
+                    eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
+                    upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect);
         } catch (Throwable e) {
-            return "BUILD 29 • lighting diagnostics unavailable\\n";
+            return "BUILD 30 • diagnostic error: " + e.getClass().getSimpleName() + "\\n";
         }
-    }
-
-    private void updateStatus(String heading) {
-        status.setText(heading + "\\n" + lightingSummary() + modelInfo);
     }
 
     private void showFailure(String stage, Throwable e) {
