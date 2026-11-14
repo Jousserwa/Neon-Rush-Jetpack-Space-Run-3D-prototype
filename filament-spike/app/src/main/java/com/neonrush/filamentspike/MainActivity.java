@@ -255,6 +255,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 "Camera Z %.2f → %.2f | near %.2f | far %.2f\n",
                 eyeZ, targetZ, nearPlane, farPlane));
         out.append("Renderable entities: ").append(entities.length).append('\n');
+        out.append("SCENE entityCount=").append(viewer.getScene().getEntityCount())
+                .append(" renderableCount=").append(viewer.getScene().getRenderableCount())
+                .append(" lightCount=").append(viewer.getScene().getLightCount()).append('\n');
 
         MaterialInstance ceilingMaterialForRuntime = null;
         for (int entity : entities) {
