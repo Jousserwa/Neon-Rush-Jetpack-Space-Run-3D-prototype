@@ -103,7 +103,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 42 | FPS --");
+        compactStatus.setText("BUILD 44 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -259,7 +259,17 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         try {
                             // Apply diagnostic colors by named node, not local primitive index.
                             // This remains correct when each corridor surface is its own mesh/node.
-                            if (lowerName.contains("ceiling")) {
+                            if (lowerName.contains("cyan") || lowerName.contains("strip")) {
+                                // Restore the strip instance independently from the Skybox.
+                                material.setParameter("baseColorFactor", 0.02f, 0.32f, 0.42f, 1.0f);
+                                material.setParameter("emissiveFactor", 0.0f, 0.75f, 1.0f);
+                                out.append(" | CYAN STRIP OVERRIDE base=(0.02,0.32,0.42,1) emissive=(0,0.75,1)");
+                                Log.i("NeonRushMaterial", "node=" + nodeName
+                                        + " instance=" + material.getName()
+                                        + " baseColorFactor=(0.02,0.32,0.42,1)"
+                                        + " emissiveFactor=(0,0.75,1)"
+                                        + " skyboxColor=" + Arrays.toString(skyboxColor));
+                            } else if (lowerName.contains("ceiling")) {
                                 material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
                                 material.setParameter("metallicFactor", 0.0f);
                                 material.setParameter("roughnessFactor", 1.0f);
@@ -683,7 +693,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 42 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 44 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -699,7 +709,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 42 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 44 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -760,7 +770,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 42 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 44 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
