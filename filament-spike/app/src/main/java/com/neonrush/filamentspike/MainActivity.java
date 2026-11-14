@@ -22,6 +22,8 @@ import com.google.android.filament.IndirectLight;
 import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
+import com.google.android.filament.TransformManager;
+import com.google.android.filament.Renderer;
 import com.google.android.filament.Skybox;
 import com.google.android.filament.View;
 import com.google.android.filament.android.UiHelper;
