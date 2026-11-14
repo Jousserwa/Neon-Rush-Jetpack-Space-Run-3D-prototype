@@ -8,6 +8,7 @@ import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.SurfaceView;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -38,6 +39,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private ModelViewer viewer;
     private IndirectLight ambientLight;
     private TextView status;
+    private TextView compactStatus;
+    private TextView detailsToggle;
+    private TextView sunToggle;
+    private boolean detailsExpanded = false;
+    private boolean sunEnabled = true;
+    private int sunInstance = -1;
+    private final float sunIntensityLux = 100000.0f;
     private boolean running;
     private long windowStart;
     private int callbacks;
@@ -69,21 +77,53 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             surfaceHeight = bottom - top;
         });
 
+        LinearLayout overlay = new LinearLayout(this);
+        overlay.setOrientation(LinearLayout.VERTICAL);
+        overlay.setPadding(dp(5), dp(5), dp(5), dp(5));
+        overlay.setBackgroundColor(0x99050A12);
+        LinearLayout controls = new LinearLayout(this);
+        controls.setOrientation(LinearLayout.HORIZONTAL);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
+        compactStatus = new TextView(this);
+        compactStatus.setTextColor(-1);
+        compactStatus.setTextSize(10);
+        compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
+        compactStatus.setText("BUILD 34 | FPS --");
+        detailsToggle = new TextView(this);
+        detailsToggle.setTextColor(0xFF7FEAFF);
+        detailsToggle.setTextSize(10);
+        detailsToggle.setPadding(dp(8), dp(7), dp(8), dp(7));
+        detailsToggle.setText("DETAILS +");
+        detailsToggle.setOnClickListener(v -> {
+            detailsExpanded = !detailsExpanded;
+            detailsToggle.setText(detailsExpanded ? "DETAILS −" : "DETAILS +");
+            detailsPanelVisibility();
+        });
+        sunToggle = new TextView(this);
+        sunToggle.setTextColor(0xFFFFD18A);
+        sunToggle.setTextSize(10);
+        sunToggle.setPadding(dp(8), dp(7), dp(8), dp(7));
+        sunToggle.setText("SUN ON");
+        sunToggle.setOnClickListener(v -> setSunEnabled(!sunEnabled));
+        controls.addView(compactStatus, new LinearLayout.LayoutParams(0, -2, 1f));
+        controls.addView(detailsToggle, new LinearLayout.LayoutParams(-2, -2));
+        controls.addView(sunToggle, new LinearLayout.LayoutParams(-2, -2));
+        overlay.addView(controls, new LinearLayout.LayoutParams(-1, -2));
         status = new TextView(this);
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setBackgroundColor(0xDD050A12);
-        status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\nLoading corridor…");
-
+        status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\\nLoading corridor…");
         ScrollView panel = new ScrollView(this);
         panel.setFillViewport(false);
         panel.addView(status);
+        panel.setVisibility(android.view.View.GONE);
+        overlay.addView(panel, new LinearLayout.LayoutParams(-1, dp(260)));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                dp(300), dp(300), Gravity.TOP | Gravity.END);
+                dp(340), -2, Gravity.TOP | Gravity.END);
         lp.topMargin = dp(10);
         lp.rightMargin = dp(10);
-        root.addView(panel, lp);
+        root.addView(overlay, lp);
         setContentView(root);
 
         try {
@@ -100,7 +140,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
             // Aim the existing SUN down and forward through the corridor, not straight down.
             LightManager lightManager = engine.getLightManager();
-            int sunInstance = lightManager.getInstance(viewer.getLight());
+            sunInstance = lightManager.getInstance(viewer.getLight());
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
@@ -309,6 +349,28 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         return a == null ? "(not set)" : a.toString();
     }
 
+    private void detailsPanelVisibility() {
+        if (status != null && status.getParent() != null
+                && status.getParent().getParent() instanceof ScrollView) {
+            ((ScrollView) status.getParent().getParent()).setVisibility(
+                    detailsExpanded ? android.view.View.VISIBLE : android.view.View.GONE);
+        }
+    }
+
+    private void setSunEnabled(boolean enabled) {
+        if (viewer == null || sunInstance < 0) return;
+        try {
+            viewer.getEngine().getLightManager().setIntensity(
+                    sunInstance, enabled ? sunIntensityLux : 0.0f);
+            sunEnabled = enabled;
+            if (sunToggle != null) sunToggle.setText(enabled ? "SUN ON" : "SUN OFF");
+            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
+        } catch (Throwable e) {
+            Log.e("NeonRushFilament", "SUN toggle failed", e);
+            if (sunToggle != null) sunToggle.setText("SUN ERROR");
+        }
+    }
+
     private String lightingSummary() {
         try {
             LightManager lm = viewer.getEngine().getLightManager();
@@ -319,7 +381,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 30 • RGB GEOMETRY TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 34 • SUN ON/OFF TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -387,6 +449,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int callbackFps = Math.round(callbacks * 1_000_000_000f / elapsed);
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
+                compactStatus.setText(String.format(Locale.US,
+                        "BUILD 34 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
