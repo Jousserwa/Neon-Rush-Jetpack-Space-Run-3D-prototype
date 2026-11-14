@@ -72,6 +72,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private VertexBuffer runtimeCeilingVertexBuffer;
     private IndexBuffer runtimeCeilingIndexBuffer;
     private int runtimeCeilingEntity = 0;
+    private VertexBuffer visibilityTestVertexBuffer;
+    private IndexBuffer visibilityTestIndexBuffer;
+    private int visibilityTestEntity = 0;
+    private String visibilityTestStatus = "VISIBILITY QUAD: PENDING";
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
     private final float ambientIntensity = 12000.0f;
@@ -109,7 +113,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 45 | FPS --\nRUNTIME CEILING: PENDING");
+        compactStatus.setText("BUILD 59 | FPS --\nRUNTIME CEILING: PENDING");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -203,6 +207,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
             geometryInfo = dumpTriangleGeometry(glb);
             viewer.loadModelGlb(ByteBuffer.wrap(glb));
+            // Explicitly ensure GLB renderables belong to the scene consumed by the View.
+            viewer.getScene().addEntities(viewer.getAsset().getRenderableEntities());
 
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
@@ -240,6 +246,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         int[] entities = asset.getRenderableEntities();
         RenderableManager rm = viewer.getEngine().getRenderableManager();
+        out.append("SCENE entities=").append(viewer.getScene().getEntityCount())
+                .append(" renderables=").append(viewer.getScene().getRenderableCount())
+                .append(" visibleRenderables=").append(viewer.getView().getVisibleRenderableCount())
+                .append(" | GLB renderables=").append(entities.length).append('\n');
         StringBuilder out = new StringBuilder();
         out.append(String.format(Locale.US,
                 "Bounds center %s | half %s\nSize %.2f × %.2f × %.2f\n",
@@ -256,6 +266,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int instance = rm.getInstance(entity);
                 int count = rm.getPrimitiveCount(instance);
                 String nodeName = String.valueOf(asset.getName(entity));
+                Box entityBounds = rm.getAxisAlignedBoundingBox(instance);
+                out.append("  entity=").append(entity)
+                        .append(" renderable=").append(rm.hasComponent(entity))
+                        .append(" inScene=").append(viewer.getScene().hasEntity(entity))
+                        .append(" boundsCenter=").append(Arrays.toString(entityBounds.getCenter()))
+                        .append(" boundsHalf=").append(Arrays.toString(entityBounds.getHalfExtent()))
+                        .append('\n');
                 String lowerName = nodeName.toLowerCase(Locale.US);
                 out.append("Node ").append(nodeName)
                         .append(" | primitives ").append(count).append('\n');
@@ -340,6 +357,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 runtimeCeilingStatus = "RUNTIME CEILING: BUILT (MAGENTA)";
                 ceilingTestMessage = "RUNTIME CEILING QUAD BUILT AT Y=3.98 | MAGENTA MATERIAL";
                 out.append("Runtime ceiling quad: BUILT at Y=3.98 using loaded ceiling material\n");
+                createVisibilityTestQuad(ceilingMaterialForRuntime);
+                out.append(visibilityTestStatus).append('\n');
             } catch (Throwable e) {
                 runtimeCeilingStatus = "RUNTIME CEILING: FAILED - " + e.getClass().getSimpleName();
                 ceilingTestMessage = "RUNTIME CEILING QUAD FAILED: "
@@ -420,6 +439,62 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 + " indices=6 type=USHORT stride=20"
                 + " material=" + material.getName()
                 + " addedToScene=true");
+    }
+
+    // Flat unlit-material sanity quad placed directly in front of the camera.
+    // POSITION + UV0 only: no NORMAL or TANGENTS are required by KHR_materials_unlit.
+    private void createVisibilityTestQuad(MaterialInstance material) {
+        if (visibilityTestEntity != 0) return;
+        Engine engine = viewer.getEngine();
+        float[] vertices = {
+                -1.0f, 0.6f, -5.0f, 0.0f, 0.0f,
+                 1.0f, 0.6f, -5.0f, 1.0f, 0.0f,
+                 1.0f, 2.6f, -5.0f, 1.0f, 1.0f,
+                -1.0f, 2.6f, -5.0f, 0.0f, 1.0f
+        };
+        ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
+                .order(ByteOrder.nativeOrder());
+        for (float value : vertices) vertexData.putFloat(value);
+        vertexData.flip();
+        visibilityTestVertexBuffer = new VertexBuffer.Builder()
+                .bufferCount(1).vertexCount(4)
+                .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
+                        VertexBuffer.AttributeType.FLOAT3, 0, 20)
+                .attribute(VertexBuffer.VertexAttribute.UV0, 0,
+                        VertexBuffer.AttributeType.FLOAT2, 12, 20)
+                .build(engine);
+        visibilityTestVertexBuffer.setBufferAt(engine, 0, vertexData);
+
+        ByteBuffer indexData = ByteBuffer.allocateDirect(12).order(ByteOrder.nativeOrder());
+        indexData.putShort((short) 0).putShort((short) 1).putShort((short) 2)
+                .putShort((short) 0).putShort((short) 2).putShort((short) 3).flip();
+        visibilityTestIndexBuffer = new IndexBuffer.Builder()
+                .indexCount(6).bufferType(IndexBuffer.Builder.IndexType.USHORT)
+                .build(engine);
+        visibilityTestIndexBuffer.setBuffer(engine, indexData);
+
+        visibilityTestEntity = EntityManager.get().create();
+        engine.getTransformManager().create(visibilityTestEntity);
+        new RenderableManager.Builder(1)
+                .boundingBox(new Box(0.0f, 1.6f, -5.0f, 1.0f, 1.0f, 0.02f))
+                .geometry(0, RenderableManager.PrimitiveType.TRIANGLES,
+                        visibilityTestVertexBuffer, visibilityTestIndexBuffer, 0, 6)
+                .material(0, material)
+                .culling(false).castShadows(false).receiveShadows(false)
+                .build(engine, visibilityTestEntity);
+        viewer.getScene().addEntity(visibilityTestEntity);
+
+        RenderableManager rm = engine.getRenderableManager();
+        int instance = rm.getInstance(visibilityTestEntity);
+        Box bounds = rm.getAxisAlignedBoundingBox(instance);
+        visibilityTestStatus = "MAGENTA CAMERA QUAD: renderable=" + rm.hasComponent(visibilityTestEntity)
+                + " transform=" + engine.getTransformManager().hasComponent(visibilityTestEntity)
+                + " inScene=" + viewer.getScene().hasEntity(visibilityTestEntity)
+                + " boundsCenter=" + Arrays.toString(bounds.getCenter())
+                + " boundsHalf=" + Arrays.toString(bounds.getHalfExtent())
+                + " sceneRenderables=" + viewer.getScene().getRenderableCount()
+                + " visibleRenderables=" + viewer.getView().getVisibleRenderableCount();
+        Log.i("NeonRushVisibilityTest", visibilityTestStatus);
     }
 
     // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
@@ -740,7 +815,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 45 • RUNTIME GEOMETRY / COLOR TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 59 • RUNTIME GEOMETRY / COLOR TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -756,7 +831,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 45 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 59 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -817,7 +892,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 45 | accepted %d/s | callbacks %d/s\n%s",
+                        "BUILD 59 | accepted %d/s | callbacks %d/s\n%s",
                         acceptedFps, callbackFps, runtimeCeilingStatus));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
@@ -854,6 +929,20 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         running = false;
         if (viewer != null) {
             try {
+                if (visibilityTestEntity != 0) {
+                    viewer.getScene().remove(visibilityTestEntity);
+                    viewer.getEngine().destroyEntity(visibilityTestEntity);
+                    EntityManager.get().destroy(visibilityTestEntity);
+                    visibilityTestEntity = 0;
+                }
+                if (visibilityTestVertexBuffer != null) {
+                    viewer.getEngine().destroyVertexBuffer(visibilityTestVertexBuffer);
+                    visibilityTestVertexBuffer = null;
+                }
+                if (visibilityTestIndexBuffer != null) {
+                    viewer.getEngine().destroyIndexBuffer(visibilityTestIndexBuffer);
+                    visibilityTestIndexBuffer = null;
+                }
                 if (runtimeCeilingEntity != 0) {
                     viewer.getScene().remove(runtimeCeilingEntity);
                     viewer.getEngine().destroyEntity(runtimeCeilingEntity);
