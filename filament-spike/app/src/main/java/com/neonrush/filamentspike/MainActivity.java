@@ -85,7 +85,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         super.onCreate(b);
 
         FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFF00001A);
         SurfaceView surface = new SurfaceView(this);
+        surface.setBackgroundColor(0xFF00001A);
         renderSurface = surface;
         root.addView(surface, new FrameLayout.LayoutParams(-1, -1));
         surface.addOnLayoutChangeListener((v, left, top, right, bottom,
@@ -155,6 +157,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             viewer = new ModelViewer(surface, Engine.create(),
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
             Engine engine = viewer.getEngine();
+            // Opaque navy clear fallback; BG TEST will toggle clear and Skybox together.
+            Renderer.ClearOptions clearOptions = new Renderer.ClearOptions();
+            clearOptions.clear = true;
+            clearOptions.clearColor = new float[] {0.0f, 0.0f, 0.1f, 1.0f};
+            viewer.getRenderer().setClearOptions(clearOptions);
             viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
             viewer.getScene().getSkybox().setColor(
                     skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
@@ -387,6 +394,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         runtimeCeilingIndexBuffer.setBuffer(engine, indexData);
 
         runtimeCeilingEntity = EntityManager.get().create();
+        // Filament renderable entities also require a TransformManager component.
+        engine.getTransformManager().create(runtimeCeilingEntity);
         new RenderableManager.Builder(1)
                 .boundingBox(new Box(0.0f, 3.98f, -3.5f, 2.5f, 0.02f, 6.5f))
                 .geometry(0, RenderableManager.PrimitiveType.TRIANGLES,
@@ -397,6 +406,18 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .receiveShadows(false)
                 .build(engine, runtimeCeilingEntity);
         viewer.getScene().addEntity(runtimeCeilingEntity);
+        RenderableManager rm = engine.getRenderableManager();
+        TransformManager tm = engine.getTransformManager();
+        int renderableInstance = rm.getInstance(runtimeCeilingEntity);
+        Log.i("NeonRushCeiling",
+                "entity=" + runtimeCeilingEntity
+                + " hasRenderable=" + rm.hasComponent(runtimeCeilingEntity)
+                + " renderableInstance=" + renderableInstance
+                + " hasTransform=" + tm.hasComponent(runtimeCeilingEntity)
+                + " boundsCenter=(0,3.98,-3.5) boundsHalf=(2.5,0.02,6.5)"
+                + " indices=6 type=USHORT stride=20"
+                + " material=" + material.getName()
+                + " addedToScene=true");
     }
 
     // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
@@ -657,15 +678,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         debugBackground = enabled;
         if (viewer == null || viewer.getScene().getSkybox() == null) return;
 
-        if (enabled) {
-            // High-contrast yellow: real cyan geometry stays cyan; background holes turn yellow.
-            viewer.getScene().getSkybox().setColor(1.0f, 1.0f, 0.0f, 1.0f);
-            if (bgToggle != null) bgToggle.setText("BG YELLOW ON");
-        } else {
-            if (bgToggle != null) bgToggle.setText("BG TEST");
-            viewer.getScene().getSkybox().setColor(
-                    skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
-        }
+        float r = enabled ? 1.0f : skyboxColor[0];
+        float g = enabled ? 1.0f : skyboxColor[1];
+        float b = enabled ? 0.0f : skyboxColor[2];
+        viewer.getScene().getSkybox().setColor(r, g, b, 1.0f);
+        Renderer.ClearOptions options = new Renderer.ClearOptions();
+        options.clear = true;
+        options.clearColor = new float[] {r, g, b, 1.0f};
+        viewer.getRenderer().setClearOptions(options);
+        if (bgToggle != null) bgToggle.setText(enabled ? "BG YELLOW ON" : "BG TEST");
         if (status != null) {
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         }
