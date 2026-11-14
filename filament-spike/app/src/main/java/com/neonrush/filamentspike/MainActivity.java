@@ -39,6 +39,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private ModelViewer viewer;
     private IndirectLight ambientLight;
     private TextView status;
+    private ScrollView detailsPanel;
     private TextView compactStatus;
     private TextView detailsToggle;
     private TextView sunToggle;
@@ -114,11 +115,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
         status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\\nLoading corridor…");
-        ScrollView panel = new ScrollView(this);
-        panel.setFillViewport(false);
-        panel.addView(status);
-        panel.setVisibility(android.view.View.GONE);
-        overlay.addView(panel, new LinearLayout.LayoutParams(-1, dp(260)));
+        detailsPanel = new ScrollView(this);
+        detailsPanel.setFillViewport(false);
+        detailsPanel.addView(status);
+        detailsPanel.setVisibility(android.view.View.GONE);
+        overlay.addView(detailsPanel, new LinearLayout.LayoutParams(-1, dp(260)));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 dp(340), -2, Gravity.TOP | Gravity.END);
         lp.topMargin = dp(10);
@@ -350,10 +351,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     private void detailsPanelVisibility() {
-        if (status != null && status.getParent() != null
-                && status.getParent().getParent() instanceof ScrollView) {
-            ((ScrollView) status.getParent().getParent()).setVisibility(
-                    detailsExpanded ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (detailsPanel != null) {
+            detailsPanel.setVisibility(detailsExpanded
+                    ? android.view.View.VISIBLE : android.view.View.GONE);
         }
     }
 
