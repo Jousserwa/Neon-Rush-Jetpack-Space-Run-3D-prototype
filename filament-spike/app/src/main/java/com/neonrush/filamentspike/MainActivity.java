@@ -56,7 +56,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private long renderCpuNanosSum;
     private long renderCpuNanosMax;
     private int renderCpuSamples;
-    private String ceilingTestMessage = "P2 ceiling test not applied";
+    private String ceilingTestMessage = "P2 MAGENTA EMISSIVE TEST NOT APPLIED";
     private String modelInfo = "Waiting for GLB diagnostics…";
     private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
@@ -95,7 +95,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 37 | FPS --");
+        compactStatus.setText("BUILD 38 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -158,7 +158,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
-            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            // Cheap diagnostic profile: no post-processing or dynamic shadow pass.\n            viewer.getView().setPostProcessingEnabled(false);\n            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
@@ -242,8 +242,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             material.setParameter("roughnessFactor", 1.0f);
                             if (p == 2) {
                                 // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
-                                material.setParameter("emissiveFactor", 10.0f, 0.0f, 10.0f);
-                                ceilingTestMessage = "P2 MAGENTA + EMISSIVE OVERRIDE APPLIED";
+                                material.setParameter("emissiveFactor", 50.0f, 0.0f, 50.0f);
+                                ceilingTestMessage = "P2 BRIGHT MAGENTA EMISSIVE OVERRIDE APPLIED";
                                 out.append(" | P2 MAGENTA EMISSIVE TEST");
                             } else {
                                 out.append(" | MATTE PBR OVERRIDE APPLIED");
@@ -551,7 +551,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 37 • SUN ON/OFF TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 38 • LOW-COST RENDER TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -567,7 +567,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 37 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 38 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -628,7 +628,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 37 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 38 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
