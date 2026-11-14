@@ -58,8 +58,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int renderCpuSamples;
     private String ceilingTestMessage = "P2 ceiling test not applied";
     private String modelInfo = "Waiting for GLB diagnostics…";
+    private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
-    private final float[] skyboxColor = {0.035f, 0.075f, 0.14f, 1.0f};
+    private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
     private final float ambientIntensity = 3000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
@@ -94,7 +95,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 35 | FPS --");
+        compactStatus.setText("BUILD 37 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -168,7 +169,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
-            dumpTriangleGeometry(glb);
+            geometryInfo = dumpTriangleGeometry(glb);
             viewer.loadModelGlb(ByteBuffer.wrap(glb));
 
             FilamentAsset asset = viewer.getAsset();
@@ -363,7 +364,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
     // Dump every indexed triangle using the actual POSITION and index accessors.
     // The current embedded corridor GLB uses one BIN chunk and FLOAT VEC3 positions.
-    private void dumpTriangleGeometry(byte[] glb) throws Exception {
+    private String dumpTriangleGeometry(byte[] glb) throws Exception {
         ByteBuffer file = ByteBuffer.wrap(glb).order(ByteOrder.LITTLE_ENDIAN);
         if (file.getInt(0) != 0x46546C67) {
             throw new IllegalArgumentException("Not a GLB file");
@@ -398,6 +399,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         JSONArray meshes = root.getJSONArray("meshes");
         JSONArray views = root.getJSONArray("bufferViews");
         JSONArray accessors = root.getJSONArray("accessors");
+        StringBuilder fullDump = new StringBuilder("ON-SCREEN TRIANGLE GEOMETRY\n");
 
         for (int m = 0; m < meshes.length(); m++) {
             JSONArray primitives = meshes.getJSONObject(m).getJSONArray("primitives");
@@ -410,8 +412,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
                 if (pos.optInt("componentType") != 5126
                         || !"VEC3".equals(pos.optString("type"))) {
-                    Log.e("NeonRushGeometry", "P" + p
-                            + " POSITION is not FLOAT VEC3");
+                    String issue = "P" + p + " POSITION is not FLOAT VEC3\n";
+                    fullDump.append(issue);
+                    Log.e("NeonRushGeometry", issue);
                     continue;
                 }
 
@@ -454,7 +457,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         .append(" indices=").append(indices.length).append('\n');
 
                 if (mode != 4) {
-                    out.append("Not TRIANGLES mode; triangle dump skipped.\\n");
+                    out.append("Not TRIANGLES mode; triangle dump skipped.").append('\n');
                 } else {
                     for (int t = 0; t + 2 < indices.length; t += 3) {
                         out.append("T").append(t / 3).append(": ");
@@ -477,12 +480,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 }
 
                 String dump = out.toString();
+                fullDump.append(dump);
                 for (int start = 0; start < dump.length(); start += 3000) {
                     Log.i("NeonRushGeometry", dump.substring(
                             start, Math.min(start + 3000, dump.length())));
                 }
             }
         }
+        return fullDump.toString();
     }
 
     private void setDebugBackground(boolean enabled) {
@@ -546,7 +551,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 35 • SUN ON/OFF TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 37 • SUN ON/OFF TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -562,12 +567,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 35 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 37 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
     private void updateStatus(String heading) {
-        status.setText(heading + "\n" + lightingSummary() + modelInfo);
+        status.setText(heading + "\n" + lightingSummary() + modelInfo + geometryInfo);
     }
 
     private void showFailure(String stage, Throwable e) {
@@ -623,7 +628,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 35 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 37 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
@@ -632,7 +637,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         renderCpuSamples > 0 ? (renderCpuNanosSum / (double) renderCpuSamples) / 1_000_000.0 : 0.0,
                         renderCpuNanosMax / 1_000_000.0)
                         + lightingSummary()
-                        + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
+                        + "False returns are NOT proof of GPU frame loss.\n" + modelInfo + geometryInfo);
                 callbacks = 0;
                 renderedFrames = 0;
                 skippedFrames = 0;
