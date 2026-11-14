@@ -120,7 +120,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         for (int entity : renderableEntities) {
             try {
                 String name = asset.getName(entity);
-                RenderableManager.Instance instance = renderables.getInstance(entity);
+                int instance = renderables.getInstance(entity);
                 int primitiveCount = renderables.getPrimitiveCount(instance);
                 details.append("Node ").append(name == null ? "(unnamed)" : name)
                         .append(" | primitives ").append(primitiveCount).append('\n');
