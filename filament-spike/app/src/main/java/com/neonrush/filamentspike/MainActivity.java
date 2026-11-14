@@ -319,13 +319,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 30 • RGB GEOMETRY TEST\\nSUN %s | %.0f lux | dir %s\\n" +
-                    "IndirectLight %s | %.0f | SH diffuse only\\n" +
-                    "Skybox %s | color %.3f %.3f %.3f\\n" +
-                    "Exposure f/16 | 1/125s | ISO100\\n" +
-                    "Eye (%.1f, %.1f, %.1f) target (%.1f, %.1f, %.1f)\\n" +
-                    "Up (%.1f, %.1f, %.1f) | vertical FOV %.1f°\\n" +
-                    "Near %.2f | far %.1f | surface %dx%d | aspect %.4f\\n",
+                    "BUILD 30 • RGB GEOMETRY TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "IndirectLight %s | %.0f | SH diffuse only\n" +
+                    "Skybox %s | color %.3f %.3f %.3f\n" +
+                    "Exposure f/16 | 1/125s | ISO100\n" +
+                    "Eye (%.1f, %.1f, %.1f) target (%.1f, %.1f, %.1f)\n" +
+                    "Up (%.1f, %.1f, %.1f) | vertical FOV %.1f°\n" +
+                    "Near %.2f | far %.1f | surface %dx%d | aspect %.4f\n",
                     lm.hasComponent(entity), lm.getIntensity(instance), Arrays.toString(direction),
                     viewer.getScene().getIndirectLight() != null, ambientIntensity,
                     viewer.getScene().getSkybox() != null,
@@ -333,7 +333,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect);
         } catch (Throwable e) {
-            return "BUILD 30 • diagnostic error: " + e.getClass().getSimpleName() + "\\n";
+            return "BUILD 30 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
