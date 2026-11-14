@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.google.android.filament.Box;
 import com.google.android.filament.Engine;
+import com.google.android.filament.Material;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
 import com.google.android.filament.Skybox;
@@ -68,7 +69,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             viewer = new ModelViewer(surface, Engine.create(),
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
             viewer.getScene().setSkybox(new Skybox.Builder().build(viewer.getEngine()));
-            viewer.getScene().getSkybox().setColor(.008f, .015f, .028f, 1f);
+            viewer.getScene().getSkybox().setColor(.035f, .075f, .14f, 1f);
 
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
@@ -94,13 +95,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         float radius = (float) Math.sqrt(
                 half[0] * half[0] + half[1] * half[1] + half[2] * half[2]);
 
-        // Fit the complete asset from its +Z side without modifying its scale or root transform.
-        double distance = Math.max(16.0, radius * 2.75);
-        double near = Math.max(0.05, distance - radius - 0.5);
-        double far = distance + radius + 0.5;
+        // Interior-camera diagnostic for this corridor (bounds Z: -10 to +3).
+        double cameraZ = 2.0;
+        double targetZ = -9.0;
+        double near = 0.1;
+        double far = 50.0;
         viewer.getCamera().lookAt(
-                center[0], center[1], center[2] + distance,
-                center[0], center[1], center[2],
+                center[0], center[1], cameraZ,
+                center[0], center[1], targetZ,
                 0.0, 1.0, 0.0);
         viewer.setCameraNear((float) near);
         viewer.setCameraFar((float) far);
@@ -113,8 +115,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 Arrays.toString(center), Arrays.toString(half),
                 half[0] * 2f, half[1] * 2f, half[2] * 2f));
         details.append(String.format(Locale.US,
-                "Camera distance %.2f | near %.2f | far %.2f\n",
-                distance, near, far));
+                "Interior camera Z %.2f -> target Z %.2f | near %.2f | far %.2f\n",
+                cameraZ, targetZ, near, far));
         details.append("Renderable entities: ").append(renderableEntities.length).append('\n');
 
         for (int entity : renderableEntities) {
@@ -127,8 +129,18 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 for (int p = 0; p < primitiveCount; p++) {
                     MaterialInstance material = renderables.getMaterialInstanceAt(instance, p);
                     details.append("  [").append(p).append("] material ")
-                            .append(material == null ? "(none)" : material.getName())
-                            .append('\n');
+                            .append(material == null ? "(none)" : material.getName());
+                    if (material != null) {
+                        Material.CullingMode originalCulling = material.getCullingMode();
+                        boolean doubleSided = material.isDoubleSided();
+                        details.append(" | culling ").append(originalCulling)
+                                .append(" | double-sided ").append(doubleSided);
+                        if (p <= 2) {
+                            material.setCullingMode(Material.CullingMode.NONE);
+                            details.append(" | TEST override NONE");
+                        }
+                    }
+                    details.append('\n');
                 }
             } catch (Throwable e) {
                 details.append("Entity ").append(entity)
