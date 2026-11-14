@@ -24,7 +24,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
   status=new TextView(this);status.setTextColor(-1);status.setTextSize(12);status.setPadding(18,14,18,14);status.setBackgroundColor(0xDD050A12);status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\\nLoading corridor…");
   ScrollView panel=new ScrollView(this);panel.setFillViewport(false);panel.addView(status);
   FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);lp.topMargin=12;lp.leftMargin=12;lp.rightMargin=12;root.addView(panel,lp);setContentView(root);
-  try{Gltfio.init();viewer=new ModelViewer(surface, Engine.create(), new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);\n   viewer.getCamera().lookAt(0.0, 2.0, 8.0, 0.0, 2.0, -3.5, 0.0, 1.0, 0.0);
+  try{Gltfio.init();viewer=new ModelViewer(surface, Engine.create(), new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
+   viewer.getCamera().lookAt(0.0, 2.0, 8.0, 0.0, 2.0, -3.5, 0.0, 1.0, 0.0);
    viewer.getScene().setSkybox(new Skybox.Builder().build(viewer.getEngine()));viewer.getScene().getSkybox().setColor(.008f,.015f,.028f,1f);
    byte[] encoded=readAsset("corridor.glb.b64");byte[] glb=Base64.decode(new String(encoded,java.nio.charset.StandardCharsets.US_ASCII),Base64.DEFAULT);
    viewer.loadModelGlb(ByteBuffer.wrap(glb));status.setText("NEON RUSH • FILAMENT TEST\\nDrag to orbit • FPS: waiting");
