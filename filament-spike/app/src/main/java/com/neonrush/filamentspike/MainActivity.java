@@ -18,7 +18,7 @@ import com.google.android.filament.IndirectLight;
 import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
-import com.google.android.filament.Skybox;
+import com.google.android.filament.Skybox;\nimport com.google.android.filament.View;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.gltfio.FilamentAsset;
 import com.google.android.filament.gltfio.Gltfio;
@@ -95,7 +95,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 38 | FPS --");
+        compactStatus.setText("BUILD 39 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -158,7 +158,18 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
-            // Cheap diagnostic profile: no post-processing or dynamic shadow pass.\n            viewer.getView().setPostProcessingEnabled(false);\n            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            // Enable 4x MSAA for geometry edges; keep post-processing enabled because
+            // Filament's MSAA resolve runs in the post-process stage.
+            View.MultiSampleAntiAliasingOptions msaa =
+                    new View.MultiSampleAntiAliasingOptions();
+            msaa.enabled = true;
+            msaa.sampleCount = 4;
+            msaa.customResolve = false;
+            viewer.getView().setPostProcessingEnabled(true);
+            viewer.getView().setMultiSampleAntiAliasingOptions(msaa);
+
+            // Disable shadow mapping during this low-cost geometry diagnostic.
+            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
