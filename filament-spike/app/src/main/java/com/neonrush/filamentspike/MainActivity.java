@@ -48,6 +48,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private TextView compactStatus;
     private TextView detailsToggle;
     private TextView sunToggle;
+    private TextView bgToggle;
+    private String runtimeCeilingStatus = "RUNTIME CEILING: PENDING";
     private boolean detailsExpanded = false;
     private boolean sunEnabled = true;
     private boolean debugBackground = false;
@@ -103,7 +105,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 44 | FPS --");
+        compactStatus.setText("BUILD 45 | FPS --\nRUNTIME CEILING: PENDING");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -123,7 +125,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         controls.addView(compactStatus, new LinearLayout.LayoutParams(0, -2, 1f));
         controls.addView(detailsToggle, new LinearLayout.LayoutParams(-2, -2));
         controls.addView(sunToggle, new LinearLayout.LayoutParams(-2, -2));
-        TextView bgToggle = new TextView(this);
+        bgToggle = new TextView(this);
         bgToggle.setTextColor(0xFF7FEAFF);
         bgToggle.setTextSize(10);
         bgToggle.setPadding(dp(8), dp(7), dp(8), dp(7));
@@ -303,6 +305,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             Log.w("NeonRushFilament", "Material override failed for " + nodeName, ex);
                         }
                     }
+                    Log.i("NeonRushMaterial", "node=" + nodeName + " primitive=" + p
+                            + " materialInstance=" + (material == null ? "null" : material.getName())
+                            + " skybox=" + Arrays.toString(skyboxColor));
                     out.append('\n');
                 }
             } catch (Throwable e) {
@@ -314,9 +319,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         if (ceilingMaterialForRuntime != null) {
             try {
                 createRuntimeCeilingQuad(ceilingMaterialForRuntime);
+                runtimeCeilingStatus = "RUNTIME CEILING: BUILT (MAGENTA)";
                 ceilingTestMessage = "RUNTIME CEILING QUAD BUILT AT Y=3.98 | MAGENTA MATERIAL";
                 out.append("Runtime ceiling quad: BUILT at Y=3.98 using loaded ceiling material\n");
             } catch (Throwable e) {
+                runtimeCeilingStatus = "RUNTIME CEILING: FAILED - " + e.getClass().getSimpleName();
                 ceilingTestMessage = "RUNTIME CEILING QUAD FAILED: "
                         + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
                 out.append("Runtime ceiling quad FAILED: ").append(e.getClass().getSimpleName())
@@ -324,6 +331,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 Log.e("NeonRushFilament", "Runtime ceiling quad failed", e);
             }
         } else {
+            runtimeCeilingStatus = "RUNTIME CEILING: NO CEILING MATERIAL FOUND";
             ceilingTestMessage = "NO LOADED CEILING NODE/MATERIAL: RUNTIME QUAD NOT CREATED";
             out.append("Runtime ceiling quad NOT CREATED: no loaded ceiling material found\n");
         }
@@ -336,11 +344,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private void createRuntimeCeilingQuad(MaterialInstance material) {
         if (runtimeCeilingEntity != 0) return;
         Engine engine = viewer.getEngine();
+        // Interleaved POSITION + NORMAL + UV0; 32-byte stride for the glTF material shader.
         float[] vertices = {
-                -2.5f, 3.98f,  3.0f,
-                -2.5f, 3.98f, -10.0f,
-                 2.5f, 3.98f, -10.0f,
-                 2.5f, 3.98f,  3.0f
+                -2.5f, 3.98f,  3.0f,  0f,-1f,0f,  0f,0f,
+                -2.5f, 3.98f, -10.0f, 0f,-1f,0f,  0f,1f,
+                 2.5f, 3.98f, -10.0f, 0f,-1f,0f,  1f,1f,
+                 2.5f, 3.98f,  3.0f,  0f,-1f,0f,  1f,0f
         };
         ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
                 .order(ByteOrder.nativeOrder());
@@ -351,7 +360,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 .bufferCount(1)
                 .vertexCount(4)
                 .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
-                        VertexBuffer.AttributeType.FLOAT3, 0, 12)
+                        VertexBuffer.AttributeType.FLOAT3, 0, 32)
+                .attribute(VertexBuffer.VertexAttribute.NORMAL, 0,
+                        VertexBuffer.AttributeType.FLOAT3, 12, 32)
+                .attribute(VertexBuffer.VertexAttribute.UV0, 0,
+                        VertexBuffer.AttributeType.FLOAT2, 24, 32)
                 .build(engine);
         runtimeCeilingVertexBuffer.setBufferAt(engine, 0, vertexData);
 
@@ -637,8 +650,11 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         if (viewer == null || viewer.getScene().getSkybox() == null) return;
 
         if (enabled) {
-            viewer.getScene().getSkybox().setColor(0.0f, 1.0f, 0.0f, 1.0f);
+            // High-contrast yellow: real cyan geometry stays cyan; background holes turn yellow.
+            viewer.getScene().getSkybox().setColor(1.0f, 1.0f, 0.0f, 1.0f);
+            if (bgToggle != null) bgToggle.setText("BG YELLOW ON");
         } else {
+            if (bgToggle != null) bgToggle.setText("BG TEST");
             viewer.getScene().getSkybox().setColor(
                     skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
         }
@@ -693,7 +709,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 44 • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 45 • RUNTIME GEOMETRY / COLOR TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -709,7 +725,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 44 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 45 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -770,7 +786,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 44 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 45 | accepted %d/s | callbacks %d/s\n%s",
+                        acceptedFps, callbackFps, runtimeCeilingStatus));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
