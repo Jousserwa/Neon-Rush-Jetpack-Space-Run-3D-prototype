@@ -27,7 +27,7 @@ groups = [
 materials = [
  {"name":"Graphite floor","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.055,.075,.095,1],"metallicFactor":.72,"roughnessFactor":.48}},
  {"name":"Dark wall panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.12,.16,.19,1],"metallicFactor":.55,"roughnessFactor":.42}},
- {"name":"Ceiling panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
+ {"name":"Ceiling panels","doubleSided":True,"extensions":{"KHR_materials_unlit":{}},"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
  {"name":"Cyan emissive strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.02,.32,.42,1],"metallicFactor":.15,"roughnessFactor":.3},"emissiveFactor":[0,.75,1]},
  {"name":"Amber warning strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.5,.18,.025,1],"metallicFactor":.1,"roughnessFactor":.35},"emissiveFactor":[1,.22,.015]},
 ]
@@ -79,9 +79,7 @@ for group_index, (material_index, quads) in enumerate(groups):
 
     primitive = {"attributes":{"POSITION":p_accessor,"NORMAL":n_accessor,"TEXCOORD_0":uv_accessor},
                  "indices":i_accessor,"material":material_index,"mode":4}
-    if group_index == 2:
-        # A true unlit material makes the magenta ceiling test independent of all lighting.
-        primitive["extensions"] = {"KHR_materials_unlit": {}}
+    # The ceiling's KHR_materials_unlit extension is declared on its MATERIAL above.
     mesh_index = len(meshes)
     meshes.append({"name":node_names[group_index] + " Mesh","primitives":[primitive]})
     nodes.append({"mesh":mesh_index,"name":node_names[group_index]})
