@@ -246,10 +246,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         int[] entities = asset.getRenderableEntities();
         RenderableManager rm = viewer.getEngine().getRenderableManager();
-        out.append("SCENE entities=").append(viewer.getScene().getEntityCount())
-                .append(" renderables=").append(viewer.getScene().getRenderableCount())
-                .append(" visibleRenderables=").append(viewer.getView().getVisibleRenderableCount())
-                .append(" | GLB renderables=").append(entities.length).append('\n');
+        out.append("GLB renderables=").append(entities.length)
+                .append(" | Scene membership is checked per entity below.").append('\n');
         StringBuilder out = new StringBuilder();
         out.append(String.format(Locale.US,
                 "Bounds center %s | half %s\nSize %.2f × %.2f × %.2f\n",
@@ -492,8 +490,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 + " inScene=" + viewer.getScene().hasEntity(visibilityTestEntity)
                 + " boundsCenter=" + Arrays.toString(bounds.getCenter())
                 + " boundsHalf=" + Arrays.toString(bounds.getHalfExtent())
-                + " sceneRenderables=" + viewer.getScene().getRenderableCount()
-                + " visibleRenderables=" + viewer.getView().getVisibleRenderableCount();
+                + " (inspect scene membership on GLB entities above)";
         Log.i("NeonRushVisibilityTest", visibilityTestStatus);
     }
 
