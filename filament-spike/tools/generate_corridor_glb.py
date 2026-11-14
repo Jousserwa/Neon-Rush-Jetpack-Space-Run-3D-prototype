@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the clean 5 x 4 x 13 Neon Rush corridor GLB using only stdlib."""
+"""Generate isolated, named corridor surfaces; ceiling uses KHR_materials_unlit for diagnosis."""
 import base64, json, struct
 from pathlib import Path
 
@@ -33,7 +33,7 @@ materials = [
 ]
 
 binary = bytearray()
-buffer_views, accessors, primitives = [], [], []
+buffer_views, accessors, meshes, nodes = [], [], [], []
 
 def align4():
     while len(binary) % 4:
@@ -46,7 +46,10 @@ def add_view(data, target):
     buffer_views.append({"buffer":0,"byteOffset":offset,"byteLength":len(data),"target":target})
     return len(buffer_views) - 1
 
-for material_index, quads in groups:
+node_names = ["Floor Surface", "Wall Surfaces", "Ceiling Surface",
+              "Cyan Ceiling and Edge Strips", "Amber Warning Strip"]
+
+for group_index, (material_index, quads) in enumerate(groups):
     positions, normals, uvs, indices = [], [], [], []
     for normal, vertices in quads:
         base = len(positions) // 3
@@ -74,15 +77,21 @@ for material_index, quads in groups:
     accessors.append({"bufferView":i_view,"componentType":5123,"count":len(indices),"type":"SCALAR",
                       "min":[0],"max":[max(indices)]})
 
-    primitives.append({"attributes":{"POSITION":p_accessor,"NORMAL":n_accessor,"TEXCOORD_0":uv_accessor},
-                        "indices":i_accessor,"material":material_index,"mode":4})
+    primitive = {"attributes":{"POSITION":p_accessor,"NORMAL":n_accessor,"TEXCOORD_0":uv_accessor},
+                 "indices":i_accessor,"material":material_index,"mode":4}
+    if group_index == 2:
+        # A true unlit material makes the magenta ceiling test independent of all lighting.
+        primitive["extensions"] = {"KHR_materials_unlit": {}}
+    mesh_index = len(meshes)
+    meshes.append({"name":node_names[group_index] + " Mesh","primitives":[primitive]})
+    nodes.append({"mesh":mesh_index,"name":node_names[group_index]})
 
 document = {
- "asset":{"version":"2.0","generator":"Neon Rush Watertight Corridor Generator"},
- "scene":0,"scenes":[{"nodes":[0]}],
- "nodes":[{"mesh":0,"name":"Watertight Neon Rush Corridor"}],
- "meshes":[{"name":"Watertight Corridor 5x4x13","primitives":primitives}],
- "materials":materials,"accessors":accessors,
+ "asset":{"version":"2.0","generator":"Neon Rush Isolated Corridor Surfaces"},
+ "extensionsUsed":["KHR_materials_unlit"],
+ "extensionsRequired":["KHR_materials_unlit"],
+ "scene":0,"scenes":[{"nodes":list(range(len(nodes)))}],
+ "nodes":nodes,"meshes":meshes,"materials":materials,"accessors":accessors,
  "buffers":[{"byteLength":len(binary)}],"bufferViews":buffer_views,
 }
 json_chunk = json.dumps(document, separators=(",",":")).encode("utf-8")
