@@ -160,7 +160,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 half[0] * 2f, half[1] * 2f, half[2] * 2f));
         out.append(String.format(Locale.US,
                 "Camera Z %.2f → %.2f | near %.2f | far %.2f\n",
-                cameraZ, targetZ, near, far));
+                eyeZ, targetZ, nearPlane, farPlane));
         out.append("Renderable entities: ").append(entities.length).append('\n');
 
         for (int entity : entities) {
