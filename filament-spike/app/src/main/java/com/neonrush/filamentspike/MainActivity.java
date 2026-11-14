@@ -13,7 +13,6 @@ import android.widget.TextView;
 
 import com.google.android.filament.Box;
 import com.google.android.filament.Engine;
-import com.google.android.filament.Material;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
 import com.google.android.filament.Skybox;
@@ -22,9 +21,14 @@ import com.google.android.filament.gltfio.FilamentAsset;
 import com.google.android.filament.gltfio.Gltfio;
 import com.google.android.filament.utils.ModelViewer;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -48,8 +52,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
         status = new TextView(this);
         status.setTextColor(-1);
-        status.setTextSize(11);
-        status.setPadding(18, 14, 18, 14);
+        status.setTextSize(10);
+        status.setPadding(16, 12, 16, 12);
         status.setBackgroundColor(0xDD050A12);
         status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\nLoading corridor…");
 
@@ -58,9 +62,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         panel.addView(status);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 -1, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        lp.topMargin = 12;
-        lp.leftMargin = 12;
-        lp.rightMargin = 12;
+        lp.topMargin = 8;
+        lp.leftMargin = 8;
+        lp.rightMargin = 8;
         root.addView(panel, lp);
         setContentView(root);
 
@@ -73,15 +77,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
-                    new String(encoded, java.nio.charset.StandardCharsets.US_ASCII),
-                    Base64.DEFAULT);
+                    new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
             viewer.loadModelGlb(ByteBuffer.wrap(glb));
 
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
                 throw new IllegalStateException("Filament could not create the GLB asset");
             }
-            modelInfo = diagnoseAndFitCamera(asset);
+            String glbInfo = inspectGlbJson(glb);
+            modelInfo = diagnoseAndFitCamera(asset) + glbInfo;
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         } catch (Throwable e) {
             showFailure("INITIALIZATION", e);
@@ -92,10 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         Box bounds = asset.getBoundingBox();
         float[] center = bounds.getCenter();
         float[] half = bounds.getHalfExtent();
-        float radius = (float) Math.sqrt(
-                half[0] * half[0] + half[1] * half[1] + half[2] * half[2]);
 
-        // Interior-camera diagnostic for this corridor (bounds Z: -10 to +3).
         double cameraZ = 2.0;
         double targetZ = -9.0;
         double near = 0.1;
@@ -107,57 +108,158 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         viewer.setCameraNear((float) near);
         viewer.setCameraFar((float) far);
 
-        int[] renderableEntities = asset.getRenderableEntities();
-        RenderableManager renderables = viewer.getEngine().getRenderableManager();
-        StringBuilder details = new StringBuilder();
-        details.append(String.format(Locale.US,
-                "Bounds center %s\nHalf extent %s\nSize %.2f × %.2f × %.2f\n",
+        int[] entities = asset.getRenderableEntities();
+        RenderableManager rm = viewer.getEngine().getRenderableManager();
+        StringBuilder out = new StringBuilder();
+        out.append(String.format(Locale.US,
+                "Bounds center %s | half %s\nSize %.2f × %.2f × %.2f\n",
                 Arrays.toString(center), Arrays.toString(half),
                 half[0] * 2f, half[1] * 2f, half[2] * 2f));
-        details.append(String.format(Locale.US,
-                "Interior camera Z %.2f -> target Z %.2f | near %.2f | far %.2f\n",
+        out.append(String.format(Locale.US,
+                "Camera Z %.2f → %.2f | near %.2f | far %.2f\n",
                 cameraZ, targetZ, near, far));
-        details.append("Renderable entities: ").append(renderableEntities.length).append('\n');
+        out.append("Renderable entities: ").append(entities.length).append('\n');
 
-        for (int entity : renderableEntities) {
+        for (int entity : entities) {
             try {
-                String name = asset.getName(entity);
-                int instance = renderables.getInstance(entity);
-                int primitiveCount = renderables.getPrimitiveCount(instance);
-                details.append("Node ").append(name == null ? "(unnamed)" : name)
-                        .append(" | primitives ").append(primitiveCount).append('\n');
-                for (int p = 0; p < primitiveCount; p++) {
-                    MaterialInstance material = renderables.getMaterialInstanceAt(instance, p);
-                    details.append("  [").append(p).append("] material ")
-                            .append(material == null ? "(none)" : material.getName());
-                    if (material != null) {
-                        Material.CullingMode originalCulling = material.getCullingMode();
-                        boolean doubleSided = material.isDoubleSided();
-                        details.append(" | culling ").append(originalCulling)
-                                .append(" | double-sided ").append(doubleSided);
-                        if (p <= 2) {
-                            material.setCullingMode(Material.CullingMode.NONE);
-                            details.append(" | TEST override NONE");
+                int instance = rm.getInstance(entity);
+                int count = rm.getPrimitiveCount(instance);
+                out.append("Node ").append(asset.getName(entity))
+                        .append(" | primitives ").append(count).append('\n');
+                for (int p = 0; p < count; p++) {
+                    MaterialInstance material = rm.getMaterialInstanceAt(instance, p);
+                    out.append("  [").append(p).append("] ")
+                            .append(material == null ? "(no material)" : material.getName());
+                    if (material != null && p <= 2) {
+                        try {
+                            material.setParameter("emissiveFactor", 0.0f, 0.75f, 1.0f);
+                            out.append(" | CYAN EMISSIVE OVERRIDE APPLIED");
+                        } catch (Throwable ex) {
+                            out.append(" | emissive override FAILED: ")
+                                    .append(ex.getClass().getSimpleName()).append(": ")
+                                    .append(String.valueOf(ex.getMessage()));
+                            Log.w("NeonRushFilament", "Emissive override failed for primitive " + p, ex);
                         }
                     }
-                    details.append('\n');
+                    out.append('\n');
                 }
             } catch (Throwable e) {
-                details.append("Entity ").append(entity)
-                        .append(" inspection failed: ").append(e.getClass().getSimpleName())
-                        .append('\n');
-                Log.w("NeonRushFilament", "Renderable inspection failed for " + entity, e);
+                out.append("Entity ").append(entity).append(" inspection failed: ")
+                        .append(e.getClass().getSimpleName()).append('\n');
+                Log.w("NeonRushFilament", "Renderable inspection failed", e);
             }
         }
+        Log.i("NeonRushFilament", out.toString());
+        return out.toString();
+    }
 
-        String result = details.toString();
+    // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
+    private String inspectGlbJson(byte[] glb) {
+        StringBuilder out = new StringBuilder("\nGLB GEOMETRY / MATERIAL DATA\n");
+        try {
+            ByteBuffer data = ByteBuffer.wrap(glb).order(ByteOrder.LITTLE_ENDIAN);
+            if (data.getInt(0) != 0x46546C67) {
+                return out.append("Invalid GLB magic\n").toString();
+            }
+            int offset = 12;
+            JSONObject root = null;
+            while (offset + 8 <= glb.length) {
+                int length = data.getInt(offset);
+                int type = data.getInt(offset + 4);
+                offset += 8;
+                if (length < 0 || offset + length > glb.length) {
+                    throw new IllegalArgumentException("Invalid GLB chunk length");
+                }
+                if (type == 0x4E4F534A) {
+                    byte[] jsonBytes = Arrays.copyOfRange(glb, offset, offset + length);
+                    String json = new String(jsonBytes, StandardCharsets.UTF_8)
+                            .replace("\u0000", "").trim();
+                    root = new JSONObject(json);
+                    break;
+                }
+                offset += length;
+            }
+            if (root == null) return out.append("GLB JSON chunk not found\n").toString();
+
+            JSONArray accessors = root.optJSONArray("accessors");
+            JSONArray meshes = root.optJSONArray("meshes");
+            JSONArray materials = root.optJSONArray("materials");
+            out.append("Accessors: ").append(accessors == null ? 0 : accessors.length())
+                    .append(" | meshes: ").append(meshes == null ? 0 : meshes.length())
+                    .append(" | materials: ").append(materials == null ? 0 : materials.length())
+                    .append('\n');
+
+            if (meshes != null) {
+                for (int m = 0; m < meshes.length(); m++) {
+                    JSONObject mesh = meshes.optJSONObject(m);
+                    JSONArray primitives = mesh == null ? null : mesh.optJSONArray("primitives");
+                    out.append("Mesh ").append(m).append(" ")
+                            .append(mesh == null ? "" : mesh.optString("name", "(unnamed)"))
+                            .append(" | primitives ").append(primitives == null ? 0 : primitives.length())
+                            .append('\n');
+                    if (primitives == null) continue;
+                    for (int p = 0; p < primitives.length(); p++) {
+                        JSONObject primitive = primitives.optJSONObject(p);
+                        JSONObject attrs = primitive == null ? null : primitive.optJSONObject("attributes");
+                        int pos = attrs == null ? -1 : attrs.optInt("POSITION", -1);
+                        int norm = attrs == null ? -1 : attrs.optInt("NORMAL", -1);
+                        int indices = primitive == null ? -1 : primitive.optInt("indices", -1);
+                        out.append("  P").append(p).append(" POSITION ");
+                        out.append(accessorSummary(accessors, pos));
+                        out.append(" | NORMAL ").append(accessorSummary(accessors, norm));
+                        out.append(" | INDEX ").append(accessorSummary(accessors, indices));
+                        int mat = primitive == null ? -1 : primitive.optInt("material", -1);
+                        out.append(" | material ").append(mat).append('\n');
+                    }
+                }
+            }
+
+            if (materials != null) {
+                for (int i = 0; i < materials.length(); i++) {
+                    JSONObject mat = materials.optJSONObject(i);
+                    if (mat == null) continue;
+                    JSONObject pbr = mat.optJSONObject("pbrMetallicRoughness");
+                    out.append("Material ").append(i).append(" ")
+                            .append(mat.optString("name", "(unnamed)"))
+                            .append(" | baseColor ")
+                            .append(arrayString(pbr == null ? null : pbr.optJSONArray("baseColorFactor")))
+                            .append(" | metallic ")
+                            .append(pbr == null ? "default" : pbr.opt("metallicFactor"))
+                            .append(" | roughness ")
+                            .append(pbr == null ? "default" : pbr.opt("roughnessFactor"))
+                            .append(" | emissive ")
+                            .append(arrayString(mat.optJSONArray("emissiveFactor")))
+                            .append('\n');
+                }
+            }
+        } catch (Throwable e) {
+            out.append("GLB JSON inspection failed: ").append(e.getClass().getSimpleName())
+                    .append(": ").append(String.valueOf(e.getMessage())).append('\n');
+            Log.w("NeonRushFilament", "GLB JSON inspection failed", e);
+        }
+        String result = out.toString();
         Log.i("NeonRushFilament", result);
         return result;
     }
 
+    private String accessorSummary(JSONArray accessors, int index) {
+        if (index < 0 || accessors == null || index >= accessors.length()) return "missing";
+        JSONObject a = accessors.optJSONObject(index);
+        if (a == null) return "invalid";
+        return "#" + index + " count=" + a.optInt("count", -1)
+                + " type=" + a.optString("type", "?")
+                + " component=" + a.optInt("componentType", -1)
+                + " min=" + arrayString(a.optJSONArray("min"))
+                + " max=" + arrayString(a.optJSONArray("max"));
+    }
+
+    private String arrayString(JSONArray a) {
+        return a == null ? "(not set)" : a.toString();
+    }
+
     private void updateStatus(String heading) {
-        status.setText(heading + "\nFixed bounds-fit camera\n"
-                + "FPS accepted: waiting\n" + modelInfo);
+        status.setText(heading + "\nEmissive geometry + GLB structure test\n"
+                + "render() accepted: waiting\n" + modelInfo);
     }
 
     private void showFailure(String stage, Throwable e) {
@@ -169,12 +271,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         Log.e("NeonRushFilament", stage + " failed", e);
     }
 
-    private byte[] readAsset(String n) throws Exception {
-        try (InputStream in = getAssets().open(n);
+    private byte[] readAsset(String name) throws Exception {
+        try (InputStream in = getAssets().open(name);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] b = new byte[4096];
-            int k;
-            while ((k = in.read(b)) > 0) out.write(b, 0, k);
+            byte[] buffer = new byte[4096];
+            int n;
+            while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
             return out.toByteArray();
         }
     }
@@ -190,27 +292,27 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     }
 
     @Override
-    public void doFrame(long t) {
+    public void doFrame(long frameTimeNanos) {
         if (!running || viewer == null) return;
         try {
             callbacks++;
-            if (viewer.render(t)) renderedFrames++;
+            if (viewer.render(frameTimeNanos)) renderedFrames++;
             else skippedFrames++;
 
-            long elapsed = t - windowStart;
+            long elapsed = frameTimeNanos - windowStart;
             if (elapsed >= 1_000_000_000L) {
                 int callbackFps = Math.round(callbacks * 1_000_000_000f / elapsed);
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
-                int skippedFps = Math.round(skippedFrames * 1_000_000_000f / elapsed);
+                int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
-                        "Fixed bounds-fit camera • accepted %d FPS\nChoreographer %d FPS | skipped %d/s\n",
-                        acceptedFps, callbackFps, skippedFps)
-                        + modelInfo);
+                        "render() accepted %d/s | callbacks %d/s | false returns %d/s\n",
+                        acceptedFps, callbackFps, falseReturns)
+                        + "False returns are NOT proof of GPU frame loss.\n" + modelInfo);
                 callbacks = 0;
                 renderedFrames = 0;
                 skippedFrames = 0;
-                windowStart = t;
+                windowStart = frameTimeNanos;
             }
             Choreographer.getInstance().postFrameCallback(this);
         } catch (Throwable e) {
