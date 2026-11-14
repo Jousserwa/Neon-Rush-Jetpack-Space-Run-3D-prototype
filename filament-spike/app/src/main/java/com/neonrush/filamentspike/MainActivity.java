@@ -348,13 +348,21 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             }
         }
         if (ceilingMaterialForRuntime != null) {
+            // Run the independent camera-facing unlit quad even if the ceiling build fails.
+            try {
+                createVisibilityTestQuad(ceilingMaterialForRuntime);
+                out.append(visibilityTestStatus).append('\n');
+            } catch (Throwable e) {
+                visibilityTestStatus = "VISIBILITY QUAD FAILED: "
+                        + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
+                out.append(visibilityTestStatus).append('\n');
+                Log.e("NeonRushFilament", "Visibility quad failed", e);
+            }
             try {
                 createRuntimeCeilingQuad(ceilingMaterialForRuntime);
                 runtimeCeilingStatus = "RUNTIME CEILING: BUILT (MAGENTA)";
                 ceilingTestMessage = "RUNTIME CEILING QUAD BUILT AT Y=3.98 | MAGENTA MATERIAL";
                 out.append("Runtime ceiling quad: BUILT at Y=3.98 using loaded ceiling material\n");
-                createVisibilityTestQuad(ceilingMaterialForRuntime);
-                out.append(visibilityTestStatus).append('\n');
             } catch (Throwable e) {
                 runtimeCeilingStatus = "RUNTIME CEILING: FAILED - " + e.getClass().getSimpleName();
                 ceilingTestMessage = "RUNTIME CEILING QUAD FAILED: "
