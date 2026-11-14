@@ -66,7 +66,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private long renderCpuNanosMax;
     private int renderCpuSamples;
     private String ceilingTestMessage = "P2 MAGENTA EMISSIVE TEST NOT APPLIED";
-    private String modelInfo = "Waiting for GLB diagnostics…";
+    private String modelInfo = "Waiting for GLB scene population…";
+    private String pendingGlbInfo = "";
+    private boolean modelDiagnosticsComplete = false;
     private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
     private VertexBuffer runtimeCeilingVertexBuffer;
@@ -207,18 +209,41 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
             geometryInfo = dumpTriangleGeometry(glb);
             viewer.loadModelGlb(ByteBuffer.wrap(glb));
-            // Explicitly ensure GLB renderables belong to the scene consumed by the View.
-            viewer.getScene().addEntities(viewer.getAsset().getRenderableEntities());
-
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
                 throw new IllegalStateException("Filament could not create the GLB asset");
             }
-            String glbInfo = inspectGlbJson(glb);
-            modelInfo = diagnoseAndFitCamera(asset) + glbInfo;
+            // ModelViewer loads GLB resources asynchronously and adds renderables to its Scene
+            // from inside render(). Wait until every GLB renderable is actually in that Scene
+            // before inspecting materials or creating the runtime test quads.
+            pendingGlbInfo = inspectGlbJson(glb);
+            modelInfo = "Waiting for ModelViewer to load GLB resources and attach all renderables to the scene…\\n";
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         } catch (Throwable e) {
             showFailure("INITIALIZATION", e);
+        }
+    }
+
+    private void tryRunSceneDiagnostics() {
+        if (modelDiagnosticsComplete || viewer == null || viewer.getAsset() == null) return;
+        FilamentAsset asset = viewer.getAsset();
+        int[] entities = asset.getRenderableEntities();
+        if (entities.length == 0) return;
+        RenderableManager rm = viewer.getEngine().getRenderableManager();
+        for (int entity : entities) {
+            if (!rm.hasComponent(entity) || !viewer.getScene().hasEntity(entity)) return;
+        }
+        modelDiagnosticsComplete = true;
+        try {
+            modelInfo = diagnoseAndFitCamera(asset) + pendingGlbInfo;
+            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
+            Log.i("NeonRushFilament", "All " + entities.length
+                    + " GLB renderables are ready and attached to the ModelViewer scene.");
+        } catch (Throwable e) {
+            modelInfo = "SCENE DIAGNOSTICS FAILED: " + e.getClass().getSimpleName()
+                    + ": " + String.valueOf(e.getMessage()) + "\\n" + pendingGlbInfo;
+            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
+            Log.e("NeonRushFilament", "Deferred scene diagnostics failed", e);
         }
     }
 
@@ -885,6 +910,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             callbacks++;
             long renderStartNanos = System.nanoTime();
             boolean accepted = viewer.render(frameTimeNanos);
+            tryRunSceneDiagnostics();
             long renderCostNanos = System.nanoTime() - renderStartNanos;
             renderCpuNanosSum += renderCostNanos;
             renderCpuSamples++;
