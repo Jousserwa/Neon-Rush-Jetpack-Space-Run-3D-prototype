@@ -14,18 +14,11 @@ import android.widget.TextView;
 
 import com.google.android.filament.Box;
 import com.google.android.filament.Engine;
-import com.google.android.filament.EntityManager;
-import com.google.android.filament.IndexBuffer;
-
-import com.google.android.filament.VertexBuffer;
 import com.google.android.filament.IndirectLight;
 import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
-import com.google.android.filament.TransformManager;
-import com.google.android.filament.Renderer;
 import com.google.android.filament.Skybox;
-import com.google.android.filament.View;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.gltfio.FilamentAsset;
 import com.google.android.filament.gltfio.Gltfio;
@@ -50,8 +43,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private TextView compactStatus;
     private TextView detailsToggle;
     private TextView sunToggle;
-    private TextView bgToggle;
-    private String runtimeCeilingStatus = "RUNTIME CEILING: PENDING";
     private boolean detailsExpanded = false;
     private boolean sunEnabled = true;
     private boolean debugBackground = false;
@@ -66,21 +57,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private long renderCpuNanosMax;
     private int renderCpuSamples;
     private String ceilingTestMessage = "P2 MAGENTA EMISSIVE TEST NOT APPLIED";
-    private String modelInfo = "Waiting for GLB scene population…";
-    private String pendingGlbInfo = "";
-    private boolean modelDiagnosticsComplete = false;
+    private String modelInfo = "Waiting for GLB diagnostics…";
     private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
-    private VertexBuffer runtimeCeilingVertexBuffer;
-    private IndexBuffer runtimeCeilingIndexBuffer;
-    private int runtimeCeilingEntity = 0;
-    private VertexBuffer visibilityTestVertexBuffer;
-    private IndexBuffer visibilityTestIndexBuffer;
-    private int visibilityTestEntity = 0;
-    private String visibilityTestStatus = "VISIBILITY QUAD: PENDING";
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
-    private final float ambientIntensity = 12000.0f;
+    private final float ambientIntensity = 3000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
     private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
     private final double upX = 0.0, upY = 1.0, upZ = 0.0;
@@ -93,9 +75,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         super.onCreate(b);
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF00001A);
         SurfaceView surface = new SurfaceView(this);
-        surface.setBackgroundColor(0xFF00001A);
         renderSurface = surface;
         root.addView(surface, new FrameLayout.LayoutParams(-1, -1));
         surface.addOnLayoutChangeListener((v, left, top, right, bottom,
@@ -115,7 +95,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 59 | FPS --\nRUNTIME CEILING: PENDING");
+        compactStatus.setText("BUILD 38 | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -135,7 +115,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         controls.addView(compactStatus, new LinearLayout.LayoutParams(0, -2, 1f));
         controls.addView(detailsToggle, new LinearLayout.LayoutParams(-2, -2));
         controls.addView(sunToggle, new LinearLayout.LayoutParams(-2, -2));
-        bgToggle = new TextView(this);
+        TextView bgToggle = new TextView(this);
         bgToggle.setTextColor(0xFF7FEAFF);
         bgToggle.setTextSize(10);
         bgToggle.setPadding(dp(8), dp(7), dp(8), dp(7));
@@ -165,11 +145,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             viewer = new ModelViewer(surface, Engine.create(),
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
             Engine engine = viewer.getEngine();
-            // Opaque navy clear fallback; BG TEST will toggle clear and Skybox together.
-            Renderer.ClearOptions clearOptions = new Renderer.ClearOptions();
-            clearOptions.clear = true;
-            clearOptions.setClearColor(0.0, 0.0, 0.1, 1.0);
-            viewer.getRenderer().setClearOptions(clearOptions);
             viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
             viewer.getScene().getSkybox().setColor(
                     skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
@@ -183,20 +158,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
-            // Enable 4x MSAA for geometry edges; keep post-processing enabled because
-            // Filament's MSAA resolve runs in the post-process stage.
-            View.MultiSampleAntiAliasingOptions msaa =
-                    new View.MultiSampleAntiAliasingOptions();
-            msaa.enabled = true;
-            msaa.sampleCount = 4;
-            msaa.customResolve = false;
-            viewer.getView().setPostProcessingEnabled(true);
-            viewer.getView().setMultiSampleAntiAliasingOptions(msaa);
-
-            // Disable shadow mapping during this low-cost geometry diagnostic.
-            viewer.getView().setShadowingEnabled(false);
-
-            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            // Cheap diagnostic profile: no post-processing or dynamic shadow pass.\n            viewer.getView().setPostProcessingEnabled(false);\n            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
@@ -209,41 +171,16 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     new String(encoded, StandardCharsets.US_ASCII), Base64.DEFAULT);
             geometryInfo = dumpTriangleGeometry(glb);
             viewer.loadModelGlb(ByteBuffer.wrap(glb));
+
             FilamentAsset asset = viewer.getAsset();
             if (asset == null) {
                 throw new IllegalStateException("Filament could not create the GLB asset");
             }
-            // ModelViewer loads GLB resources asynchronously and adds renderables to its Scene
-            // from inside render(). Wait until every GLB renderable is actually in that Scene
-            // before inspecting materials or creating the runtime test quads.
-            pendingGlbInfo = inspectGlbJson(glb);
-            modelInfo = "Waiting for ModelViewer to load GLB resources and attach all renderables to the scene…\\n";
+            String glbInfo = inspectGlbJson(glb);
+            modelInfo = diagnoseAndFitCamera(asset) + glbInfo;
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         } catch (Throwable e) {
             showFailure("INITIALIZATION", e);
-        }
-    }
-
-    private void tryRunSceneDiagnostics() {
-        if (modelDiagnosticsComplete || viewer == null || viewer.getAsset() == null) return;
-        FilamentAsset asset = viewer.getAsset();
-        int[] entities = asset.getRenderableEntities();
-        if (entities.length == 0) return;
-        RenderableManager rm = viewer.getEngine().getRenderableManager();
-        for (int entity : entities) {
-            if (!rm.hasComponent(entity) || !viewer.getScene().hasEntity(entity)) return;
-        }
-        modelDiagnosticsComplete = true;
-        try {
-            modelInfo = diagnoseAndFitCamera(asset) + pendingGlbInfo;
-            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
-            Log.i("NeonRushFilament", "All " + entities.length
-                    + " GLB renderables are ready and attached to the ModelViewer scene.");
-        } catch (Throwable e) {
-            modelInfo = "SCENE DIAGNOSTICS FAILED: " + e.getClass().getSimpleName()
-                    + ": " + String.valueOf(e.getMessage()) + "\\n" + pendingGlbInfo;
-            updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
-            Log.e("NeonRushFilament", "Deferred scene diagnostics failed", e);
         }
     }
 
@@ -280,93 +217,49 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 "Camera Z %.2f → %.2f | near %.2f | far %.2f\n",
                 eyeZ, targetZ, nearPlane, farPlane));
         out.append("Renderable entities: ").append(entities.length).append('\n');
-        out.append("SCENE entityCount=").append(viewer.getScene().getEntityCount())
-                .append(" renderableCount=").append(viewer.getScene().getRenderableCount())
-                .append(" lightCount=").append(viewer.getScene().getLightCount()).append('\n');
 
-        MaterialInstance ceilingMaterialForRuntime = null;
         for (int entity : entities) {
             try {
                 int instance = rm.getInstance(entity);
                 int count = rm.getPrimitiveCount(instance);
-                String nodeName = String.valueOf(asset.getName(entity));
-                Box entityBounds = rm.getAxisAlignedBoundingBox(instance);
-                out.append("  entity=").append(entity)
-                        .append(" renderable=").append(rm.hasComponent(entity))
-                        .append(" inScene=").append(viewer.getScene().hasEntity(entity))
-                        .append(" boundsCenter=").append(Arrays.toString(entityBounds.getCenter()))
-                        .append(" boundsHalf=").append(Arrays.toString(entityBounds.getHalfExtent()))
-                        .append('\n');
-                String lowerName = nodeName.toLowerCase(Locale.US);
-                out.append("Node ").append(nodeName)
+                out.append("Node ").append(asset.getName(entity))
                         .append(" | primitives ").append(count).append('\n');
                 for (int p = 0; p < count; p++) {
                     MaterialInstance material = rm.getMaterialInstanceAt(instance, p);
                     out.append("  [").append(p).append("] ")
                             .append(material == null ? "(no material)" : material.getName());
-                    if (material != null) {
-                        if (lowerName.contains("ceiling") && ceilingMaterialForRuntime == null) {
-                            ceilingMaterialForRuntime = material;
-                        }
+                    if (material != null && p <= 2) {
                         try {
-                            // Apply diagnostic colors by named node, not local primitive index.
-                            // This remains correct when each corridor surface is its own mesh/node.
-                            if (lowerName.contains("cyan")) {
-                                // Only the cyan strip node receives the cyan override.
-                                material.setParameter("baseColorFactor", 0.02f, 0.32f, 0.42f, 1.0f);
-                                material.setParameter("emissiveFactor", 0.0f, 0.75f, 1.0f);
-                                out.append(" | CYAN STRIP OVERRIDE base=(0.02,0.32,0.42,1) emissive=(0,0.75,1)");
-                                Log.i("NeonRushMaterial", "node=" + nodeName
-                                        + " instance=" + material.getName()
-                                        + " baseColorFactor=(0.02,0.32,0.42,1)"
-                                        + " emissiveFactor=(0,0.75,1)"
-                                        + " skyboxColor=" + Arrays.toString(skyboxColor));
-                            } else if (lowerName.contains("amber")) {
-                                // Preserve the warning strip's own amber material; never share cyan.
-                                material.setParameter("baseColorFactor", 0.5f, 0.18f, 0.025f, 1.0f);
-                                material.setParameter("emissiveFactor", 1.0f, 0.22f, 0.015f);
-                                out.append(" | AMBER STRIP OVERRIDE base=(0.5,0.18,0.025,1) emissive=(1,0.22,0.015)");
-                                Log.i("NeonRushMaterial", "node=" + nodeName
-                                        + " instance=" + material.getName()
-                                        + " baseColorFactor=(0.5,0.18,0.025,1)"
-                                        + " emissiveFactor=(1,0.22,0.015)");
-                            } else if (lowerName.contains("ceiling")) {
-                                material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
-                                material.setParameter("metallicFactor", 0.0f);
-                                material.setParameter("roughnessFactor", 1.0f);
-                                try {
-                                    material.setParameter("emissiveFactor", 8.0f, 0.0f, 8.0f);
-                                } catch (Throwable ignored) {
-                                    // KHR_materials_unlit ceiling is already independent of scene lighting.
-                                }
-                                ceilingTestMessage = "SEPARATE CEILING NODE: MAGENTA UNLIT TEST";
-                                out.append(" | MAGENTA UNLIT CEILING TEST");
-                            } else if (lowerName.contains("floor")) {
-                                material.setParameter("baseColorFactor", 1.0f, 0.025f, 0.025f, 1.0f);
-                                material.setParameter("metallicFactor", 0.0f);
-                                material.setParameter("roughnessFactor", 1.0f);
-                                out.append(" | RED FLOOR TEST");
-                            } else if (lowerName.contains("wall")) {
-                                material.setParameter("baseColorFactor", 0.025f, 1.0f, 0.025f, 1.0f);
-                                material.setParameter("metallicFactor", 0.0f);
-                                material.setParameter("roughnessFactor", 1.0f);
-                                out.append(" | GREEN WALL TEST");
+                            // Bright matte test: isolate lighting from dark-metallic material response.
+                            float[][] colors = {
+                                    {1.0f, 0.025f, 0.025f, 1.0f},
+                                    {0.025f, 1.0f, 0.025f, 1.0f},
+                                    {1.0f, 0.0f, 1.0f, 1.0f}
+                            };
+                            float[] c = colors[p];
+                            material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
+                            material.setParameter("metallicFactor", 0.0f);
+                            material.setParameter("roughnessFactor", 1.0f);
+                            if (p == 2) {
+                                // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
+                                material.setParameter("emissiveFactor", 50.0f, 0.0f, 50.0f);
+                                ceilingTestMessage = "P2 BRIGHT MAGENTA EMISSIVE OVERRIDE APPLIED";
+                                out.append(" | P2 MAGENTA EMISSIVE TEST");
+                            } else {
+                                out.append(" | MATTE PBR OVERRIDE APPLIED");
                             }
                         } catch (Throwable ex) {
-                            if (lowerName.contains("ceiling")) {
-                                ceilingTestMessage = "CEILING MATERIAL OVERRIDE FAILED: "
+                            if (p == 2) {
+                                ceilingTestMessage = "P2 EMISSIVE OVERRIDE FAILED: "
                                         + ex.getClass().getSimpleName() + ": "
                                         + String.valueOf(ex.getMessage());
                             }
-                            out.append(" | material override FAILED: ")
+                            out.append(" | PBR override FAILED: ")
                                     .append(ex.getClass().getSimpleName()).append(": ")
                                     .append(String.valueOf(ex.getMessage()));
-                            Log.w("NeonRushFilament", "Material override failed for " + nodeName, ex);
+                            Log.w("NeonRushFilament", "PBR override failed for primitive " + p, ex);
                         }
                     }
-                    Log.i("NeonRushMaterial", "node=" + nodeName + " primitive=" + p
-                            + " materialInstance=" + (material == null ? "null" : material.getName())
-                            + " skybox=" + Arrays.toString(skyboxColor));
                     out.append('\n');
                 }
             } catch (Throwable e) {
@@ -375,157 +268,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 Log.w("NeonRushFilament", "Renderable inspection failed", e);
             }
         }
-        if (ceilingMaterialForRuntime != null) {
-            // Run the independent camera-facing unlit quad even if the ceiling build fails.
-            try {
-                createVisibilityTestQuad(ceilingMaterialForRuntime);
-                out.append(visibilityTestStatus).append('\n');
-            } catch (Throwable e) {
-                visibilityTestStatus = "VISIBILITY QUAD FAILED: "
-                        + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
-                out.append(visibilityTestStatus).append('\n');
-                Log.e("NeonRushFilament", "Visibility quad failed", e);
-            }
-            try {
-                createRuntimeCeilingQuad(ceilingMaterialForRuntime);
-                runtimeCeilingStatus = "RUNTIME CEILING: BUILT (MAGENTA)";
-                ceilingTestMessage = "RUNTIME CEILING QUAD BUILT AT Y=3.98 | MAGENTA MATERIAL";
-                out.append("Runtime ceiling quad: BUILT at Y=3.98 using loaded ceiling material\n");
-            } catch (Throwable e) {
-                runtimeCeilingStatus = "RUNTIME CEILING: FAILED - " + e.getClass().getSimpleName();
-                ceilingTestMessage = "RUNTIME CEILING QUAD FAILED: "
-                        + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
-                out.append("Runtime ceiling quad FAILED: ").append(e.getClass().getSimpleName())
-                        .append(": ").append(String.valueOf(e.getMessage())).append('\n');
-                Log.e("NeonRushFilament", "Runtime ceiling quad failed", e);
-            }
-        } else {
-            runtimeCeilingStatus = "RUNTIME CEILING: NO CEILING MATERIAL FOUND";
-            ceilingTestMessage = "NO LOADED CEILING NODE/MATERIAL: RUNTIME QUAD NOT CREATED";
-            out.append("Runtime ceiling quad NOT CREATED: no loaded ceiling material found\n");
-        }
         Log.i("NeonRushFilament", out.toString());
         return out.toString();
-    }
-
-    // Fallback geometry: a separate Filament renderable, not part of the GLB mesh.
-    // Uses the loaded GLB ceiling's magenta material so this isolates mesh/renderable creation.
-    private void createRuntimeCeilingQuad(MaterialInstance material) {
-        if (runtimeCeilingEntity != 0) return;
-        Engine engine = viewer.getEngine();
-        // KHR_materials_unlit needs POSITION and UV0 only; no NORMAL attribute.
-        // Interleaved POSITION + UV0, 20-byte stride.
-        float[] vertices = {
-                -2.5f, 3.98f,  3.0f,  0f,0f,
-                -2.5f, 3.98f, -10.0f, 0f,1f,
-                 2.5f, 3.98f, -10.0f, 1f,1f,
-                 2.5f, 3.98f,  3.0f,  1f,0f
-        };
-        ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
-                .order(ByteOrder.nativeOrder());
-        for (float value : vertices) vertexData.putFloat(value);
-        vertexData.flip();
-
-        runtimeCeilingVertexBuffer = new VertexBuffer.Builder()
-                .bufferCount(1)
-                .vertexCount(4)
-                .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
-                        VertexBuffer.AttributeType.FLOAT3, 0, 20)
-                .attribute(VertexBuffer.VertexAttribute.UV0, 0,
-                        VertexBuffer.AttributeType.FLOAT2, 12, 20)
-                .build(engine);
-        runtimeCeilingVertexBuffer.setBufferAt(engine, 0, vertexData);
-
-        ByteBuffer indexData = ByteBuffer.allocateDirect(6 * 2)
-                .order(ByteOrder.nativeOrder());
-        indexData.putShort((short) 0).putShort((short) 1).putShort((short) 2)
-                .putShort((short) 0).putShort((short) 2).putShort((short) 3).flip();
-        runtimeCeilingIndexBuffer = new IndexBuffer.Builder()
-                .indexCount(6)
-                .bufferType(IndexBuffer.Builder.IndexType.USHORT)
-                .build(engine);
-        runtimeCeilingIndexBuffer.setBuffer(engine, indexData);
-
-        runtimeCeilingEntity = EntityManager.get().create();
-        // Filament renderable entities also require a TransformManager component.
-        engine.getTransformManager().create(runtimeCeilingEntity);
-        new RenderableManager.Builder(1)
-                .boundingBox(new Box(0.0f, 3.98f, -3.5f, 2.5f, 0.02f, 6.5f))
-                .geometry(0, RenderableManager.PrimitiveType.TRIANGLES,
-                        runtimeCeilingVertexBuffer, runtimeCeilingIndexBuffer, 0, 6)
-                .material(0, material)
-                .culling(false)
-                .castShadows(false)
-                .receiveShadows(false)
-                .build(engine, runtimeCeilingEntity);
-        viewer.getScene().addEntity(runtimeCeilingEntity);
-        RenderableManager rm = engine.getRenderableManager();
-        TransformManager tm = engine.getTransformManager();
-        int renderableInstance = rm.getInstance(runtimeCeilingEntity);
-        Log.i("NeonRushCeiling",
-                "entity=" + runtimeCeilingEntity
-                + " hasRenderable=" + rm.hasComponent(runtimeCeilingEntity)
-                + " renderableInstance=" + renderableInstance
-                + " hasTransform=" + tm.hasComponent(runtimeCeilingEntity)
-                + " boundsCenter=(0,3.98,-3.5) boundsHalf=(2.5,0.02,6.5)"
-                + " indices=6 type=USHORT stride=20"
-                + " material=" + material.getName()
-                + " addedToScene=true");
-    }
-
-    // Flat unlit-material sanity quad placed directly in front of the camera.
-    // POSITION + UV0 only: no NORMAL or TANGENTS are required by KHR_materials_unlit.
-    private void createVisibilityTestQuad(MaterialInstance material) {
-        if (visibilityTestEntity != 0) return;
-        Engine engine = viewer.getEngine();
-        float[] vertices = {
-                -1.0f, 0.6f, -5.0f, 0.0f, 0.0f,
-                 1.0f, 0.6f, -5.0f, 1.0f, 0.0f,
-                 1.0f, 2.6f, -5.0f, 1.0f, 1.0f,
-                -1.0f, 2.6f, -5.0f, 0.0f, 1.0f
-        };
-        ByteBuffer vertexData = ByteBuffer.allocateDirect(vertices.length * 4)
-                .order(ByteOrder.nativeOrder());
-        for (float value : vertices) vertexData.putFloat(value);
-        vertexData.flip();
-        visibilityTestVertexBuffer = new VertexBuffer.Builder()
-                .bufferCount(1).vertexCount(4)
-                .attribute(VertexBuffer.VertexAttribute.POSITION, 0,
-                        VertexBuffer.AttributeType.FLOAT3, 0, 20)
-                .attribute(VertexBuffer.VertexAttribute.UV0, 0,
-                        VertexBuffer.AttributeType.FLOAT2, 12, 20)
-                .build(engine);
-        visibilityTestVertexBuffer.setBufferAt(engine, 0, vertexData);
-
-        ByteBuffer indexData = ByteBuffer.allocateDirect(12).order(ByteOrder.nativeOrder());
-        indexData.putShort((short) 0).putShort((short) 1).putShort((short) 2)
-                .putShort((short) 0).putShort((short) 2).putShort((short) 3).flip();
-        visibilityTestIndexBuffer = new IndexBuffer.Builder()
-                .indexCount(6).bufferType(IndexBuffer.Builder.IndexType.USHORT)
-                .build(engine);
-        visibilityTestIndexBuffer.setBuffer(engine, indexData);
-
-        visibilityTestEntity = EntityManager.get().create();
-        engine.getTransformManager().create(visibilityTestEntity);
-        new RenderableManager.Builder(1)
-                .boundingBox(new Box(0.0f, 1.6f, -5.0f, 1.0f, 1.0f, 0.02f))
-                .geometry(0, RenderableManager.PrimitiveType.TRIANGLES,
-                        visibilityTestVertexBuffer, visibilityTestIndexBuffer, 0, 6)
-                .material(0, material)
-                .culling(false).castShadows(false).receiveShadows(false)
-                .build(engine, visibilityTestEntity);
-        viewer.getScene().addEntity(visibilityTestEntity);
-
-        RenderableManager rm = engine.getRenderableManager();
-        int instance = rm.getInstance(visibilityTestEntity);
-        Box bounds = rm.getAxisAlignedBoundingBox(instance);
-        visibilityTestStatus = "MAGENTA CAMERA QUAD: renderable=" + rm.hasComponent(visibilityTestEntity)
-                + " transform=" + engine.getTransformManager().hasComponent(visibilityTestEntity)
-                + " inScene=" + viewer.getScene().hasEntity(visibilityTestEntity)
-                + " boundsCenter=" + Arrays.toString(bounds.getCenter())
-                + " boundsHalf=" + Arrays.toString(bounds.getHalfExtent())
-                + " (inspect scene membership on GLB entities above)";
-        Log.i("NeonRushVisibilityTest", visibilityTestStatus);
     }
 
     // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
@@ -665,10 +409,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int posIndex = attrs.getInt("POSITION");
                 JSONObject pos = accessors.getJSONObject(posIndex);
                 JSONObject posView = views.getJSONObject(pos.getInt("bufferView"));
-                int normalIndex = attrs.optInt("NORMAL", -1);
-                JSONObject normal = normalIndex >= 0 ? accessors.getJSONObject(normalIndex) : null;
-                JSONObject normalView = normal == null ? null
-                        : views.getJSONObject(normal.getInt("bufferView"));
 
                 if (pos.optInt("componentType") != 5126
                         || !"VEC3".equals(pos.optString("type"))) {
@@ -682,9 +422,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + pos.optInt("byteOffset", 0);
                 int posStride = posView.optInt("byteStride", 12);
                 int vertexCount = pos.getInt("count");
-                int normalBase = normal == null ? 0
-                        : normalView.optInt("byteOffset", 0) + normal.optInt("byteOffset", 0);
-                int normalStride = normal == null ? 0 : normalView.optInt("byteStride", 12);
 
                 int[] indices;
                 int indexAccessor = primitive.optInt("indices", -1);
@@ -735,39 +472,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             float y = bin.getFloat(at + 4);
                             float z = bin.getFloat(at + 8);
                             out.append(String.format(Locale.US,
-                                    "V%d(%.4f,%.4f,%.4f)",
+                                    "V%d(%.4f,%.4f,%.4f) ",
                                     vertex, x, y, z));
-                            if (normal != null && normal.optInt("componentType") == 5126) {
-                                int na = normalBase + vertex * normalStride;
-                                out.append(String.format(Locale.US, " N(%.3f,%.3f,%.3f)",
-                                        bin.getFloat(na), bin.getFloat(na + 4),
-                                        bin.getFloat(na + 8)));
-                            }
-                            out.append("  ");
                         }
-                        int a = indices[t], b = indices[t + 1], d = indices[t + 2];
-                        int aa = posBase + a * posStride;
-                        int bb = posBase + b * posStride;
-                        int dd = posBase + d * posStride;
-                        float abx = bin.getFloat(bb) - bin.getFloat(aa);
-                        float aby = bin.getFloat(bb + 4) - bin.getFloat(aa + 4);
-                        float abz = bin.getFloat(bb + 8) - bin.getFloat(aa + 8);
-                        float adx = bin.getFloat(dd) - bin.getFloat(aa);
-                        float ady = bin.getFloat(dd + 4) - bin.getFloat(aa + 4);
-                        float adz = bin.getFloat(dd + 8) - bin.getFloat(aa + 8);
-                        float nx = aby * adz - abz * ady;
-                        float ny = abz * adx - abx * adz;
-                        float nz = abx * ady - aby * adx;
-                        float area = 0.5f * (float) Math.sqrt(nx*nx + ny*ny + nz*nz);
-                        float windingDot = 0.0f;
-                        if (normal != null) {
-                            int na = normalBase + a * normalStride;
-                            windingDot = nx * bin.getFloat(na)
-                                    + ny * bin.getFloat(na + 4) + nz * bin.getFloat(na + 8);
-                        }
-                        out.append(String.format(Locale.US,
-                                "area=%.4f cross=(%.3f,%.3f,%.3f) winding·normal=%.4f\n",
-                                area, nx, ny, nz, windingDot));
+                        out.append('\n');
                     }
                 }
 
@@ -786,15 +494,12 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         debugBackground = enabled;
         if (viewer == null || viewer.getScene().getSkybox() == null) return;
 
-        float r = enabled ? 1.0f : skyboxColor[0];
-        float g = enabled ? 1.0f : skyboxColor[1];
-        float b = enabled ? 0.0f : skyboxColor[2];
-        viewer.getScene().getSkybox().setColor(r, g, b, 1.0f);
-        Renderer.ClearOptions options = new Renderer.ClearOptions();
-        options.clear = true;
-        options.setClearColor(r, g, b, 1.0);
-        viewer.getRenderer().setClearOptions(options);
-        if (bgToggle != null) bgToggle.setText(enabled ? "BG YELLOW ON" : "BG TEST");
+        if (enabled) {
+            viewer.getScene().getSkybox().setColor(0.0f, 1.0f, 0.0f, 1.0f);
+        } else {
+            viewer.getScene().getSkybox().setColor(
+                    skyboxColor[0], skyboxColor[1], skyboxColor[2], skyboxColor[3]);
+        }
         if (status != null) {
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         }
@@ -846,7 +551,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 59 • RUNTIME GEOMETRY / COLOR TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 38 • LOW-COST RENDER TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -862,7 +567,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 59 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 38 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -910,7 +615,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             callbacks++;
             long renderStartNanos = System.nanoTime();
             boolean accepted = viewer.render(frameTimeNanos);
-            tryRunSceneDiagnostics();
             long renderCostNanos = System.nanoTime() - renderStartNanos;
             renderCpuNanosSum += renderCostNanos;
             renderCpuSamples++;
@@ -924,8 +628,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 59 | accepted %d/s | callbacks %d/s\n%s",
-                        acceptedFps, callbackFps, runtimeCeilingStatus));
+                        "BUILD 38 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
@@ -961,34 +664,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         running = false;
         if (viewer != null) {
             try {
-                if (visibilityTestEntity != 0) {
-                    viewer.getScene().remove(visibilityTestEntity);
-                    viewer.getEngine().destroyEntity(visibilityTestEntity);
-                    EntityManager.get().destroy(visibilityTestEntity);
-                    visibilityTestEntity = 0;
-                }
-                if (visibilityTestVertexBuffer != null) {
-                    viewer.getEngine().destroyVertexBuffer(visibilityTestVertexBuffer);
-                    visibilityTestVertexBuffer = null;
-                }
-                if (visibilityTestIndexBuffer != null) {
-                    viewer.getEngine().destroyIndexBuffer(visibilityTestIndexBuffer);
-                    visibilityTestIndexBuffer = null;
-                }
-                if (runtimeCeilingEntity != 0) {
-                    viewer.getScene().remove(runtimeCeilingEntity);
-                    viewer.getEngine().destroyEntity(runtimeCeilingEntity);
-                    EntityManager.get().destroy(runtimeCeilingEntity);
-                    runtimeCeilingEntity = 0;
-                }
-                if (runtimeCeilingVertexBuffer != null) {
-                    viewer.getEngine().destroyVertexBuffer(runtimeCeilingVertexBuffer);
-                    runtimeCeilingVertexBuffer = null;
-                }
-                if (runtimeCeilingIndexBuffer != null) {
-                    viewer.getEngine().destroyIndexBuffer(runtimeCeilingIndexBuffer);
-                    runtimeCeilingIndexBuffer = null;
-                }
                 if (ambientLight != null) {
                     viewer.getEngine().destroyIndirectLight(ambientLight);
                     ambientLight = null;
