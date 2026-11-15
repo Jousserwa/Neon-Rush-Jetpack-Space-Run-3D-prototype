@@ -138,7 +138,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 dp(340), -2, Gravity.TOP | Gravity.END);
         lp.topMargin = dp(10);
         lp.rightMargin = dp(10);
-        // Keep diagnostics available in debug/test APKs; hide the entire overlay in release builds.\n        overlay.setVisibility(BuildConfig.DEBUG ? android.view.View.VISIBLE : android.view.View.GONE);\n        root.addView(overlay, lp);
+        // The isolated Filament spike workflow builds the DEBUG variant. Keep its diagnostics visible above the render surface; release variants hide them.\n        overlay.setVisibility(BuildConfig.DEBUG ? android.view.View.VISIBLE : android.view.View.GONE);\n        overlay.setElevation(dp(12));\n        root.addView(overlay, lp);\n        overlay.bringToFront();
         setContentView(root);
 
         try {
