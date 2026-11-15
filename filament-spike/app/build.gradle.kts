@@ -23,6 +23,11 @@ android {
         debug {
             isMinifyEnabled = false
         }
+        release {
+            isMinifyEnabled = false
+            // Internal device-validation signing only; this is NOT a production signing key.
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 }
 
