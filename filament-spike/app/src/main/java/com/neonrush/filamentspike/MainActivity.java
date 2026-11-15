@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 48C | FPS --");
+        compactStatus.setText("BUILD 49C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 48C | DARK PBR + AMBER FIX + BLOOM 0.20 | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 49C | DARK PBR + AMBER FIX + BLOOM 0.20 | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -178,15 +178,15 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             ao.enabled = false;
             viewer.getView().setAmbientOcclusionOptions(ao);
 
-            // BUILD 48C: test a moderate bloom increase for emissive cyan / amber geometry.
-            // Keep resolution, levels, threshold, and LOW quality unchanged; validate
-            // accepted render rate on the test device against the 55/s target.
+            // BUILD 49C: make emissive strips visibly bloom. Disable the fixed threshold
+            // so authored cyan/amber emissive materials contribute; keep the low-
+            // resolution and LOW quality path to protect mobile performance.
             View.BloomOptions bloom = new View.BloomOptions();
             bloom.enabled = true;
-            bloom.strength = 0.20f;
+            bloom.strength = 0.40f;
             bloom.resolution = 192;
             bloom.levels = 4;
-            bloom.threshold = true;
+            bloom.threshold = false;
             bloom.quality = View.QualityLevel.LOW;
             bloom.lensFlare = false;
             viewer.getView().setBloomOptions(bloom);
@@ -632,7 +632,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 48C • AMBER STRIP + LOW BLOOM\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 49C • VISIBLE EMISSIVE BLOOM\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -648,7 +648,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 48C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 49C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -709,7 +709,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 48C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 49C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
