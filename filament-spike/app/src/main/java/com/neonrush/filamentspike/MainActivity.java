@@ -97,7 +97,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 54C | FPS --");
+        compactStatus.setText("BUILD 55C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -129,7 +129,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 54C | RIGHT-WALL C1 MATERIAL TEST | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 55C | RIGHT-WALL DIFFUSE RESPONSE TEST | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -214,8 +214,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     .build(engine);
             viewer.getScene().setIndirectLight(ambientLight);
 
-            // BUILD 54C: isolate the right wall as its own GLB node and apply the C1 material.
-            // No lighting, exposure, camera, bloom, or rendering settings are changed.
+            // BUILD 55C: keep the isolated right-wall C1 base color and roughness, but use metallic 0.05.
+            // Original left/far wall material, lighting, exposure, camera, bloom, and rendering settings stay unchanged.
 
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
@@ -652,7 +652,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 54C • AMBIENT-ONLY RIGHT-WALL TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 55C • RIGHT-WALL DIFFUSE RESPONSE TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -666,9 +666,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     skyboxColor[0], skyboxColor[1], skyboxColor[2],
                     eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
-                    ceilingTestMessage + "\nRight-wall fill NONE | IndirectLight-only ambient test");
+                    ceilingTestMessage + "\nRight wall: baseColor [0.18, 0.24, 0.285] | metallic 0.05 | roughness 0.42\nOriginal wall material unchanged | no fill lights");
         } catch (Throwable e) {
-            return "BUILD 52C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 55C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -729,7 +729,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 54C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 55C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
