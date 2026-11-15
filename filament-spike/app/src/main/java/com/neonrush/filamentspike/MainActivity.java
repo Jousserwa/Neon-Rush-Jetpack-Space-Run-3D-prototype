@@ -63,7 +63,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private SurfaceView renderSurface;
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
-    private final float ambientIntensity = 18000.0f;
+    private final float ambientIntensity = 20000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
     private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
     private final double upX = 0.0, upY = 1.0, upZ = 0.0;
@@ -97,7 +97,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 50C | FPS --");
+        compactStatus.setText("BUILD 51C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -205,7 +205,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             dynamicResolution.quality = View.QualityLevel.LOW;
             viewer.getView().setDynamicResolutionOptions(dynamicResolution);
 
-            // Keep the validated ambient level unchanged during the camera-framing check.
+            // BUILD 51C: modest global ambient lift (18,000 -> 20,000) to reveal the unlit right wall.
+            // Keep sun, camera, authored materials and validated BUILD 49C bloom unchanged.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 1.0f, sh0 * 1.0f, sh0 * 1.0f })
@@ -662,7 +663,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 49C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 51C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
