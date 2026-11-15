@@ -11,9 +11,11 @@ groups = [
     (0, [((0, 1, 0), [(-2.5,0,3),(2.5,0,3),(2.5,0,-10),(-2.5,0,-10)])]),
     (1, [
         ((1,0,0), [(-2.5,0,3),(-2.5,0,-10),(-2.5,4,-10),(-2.5,4,3)]),
-        ((-1,0,0), [(2.5,0,3),(2.5,4,3),(2.5,4,-10),(2.5,0,-10)]),
         ((0,0,1), [(-2.5,0,-10),(2.5,0,-10),(2.5,4,-10),(-2.5,4,-10)]),
     ]),
+    # Isolate the right wall so its material can be tuned without changing
+    # the left/far walls or adding another runtime light.
+    (5, [((-1,0,0), [(2.5,0,3),(2.5,4,3),(2.5,4,-10),(2.5,0,-10)])]),
     (2, [((0,-1,0), [(-2.5,4,3),(-2.5,4,-10),(2.5,4,-10),(2.5,4,3)])]),
     (3, [
         ((1,0,0), [(-2.42,.12,3),(-2.42,.12,-10),(-2.42,.20,-10),(-2.42,.20,3)]),
@@ -32,6 +34,8 @@ materials = [
  {"name":"Ceiling panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
  {"name":"Cyan emissive strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.02,.32,.42,1],"metallicFactor":.15,"roughnessFactor":.3},"emissiveFactor":[0,.75,1]},
  {"name":"Amber warning strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.5,.18,.025,1],"metallicFactor":.1,"roughnessFactor":.35},"emissiveFactor":[1,.22,.015]},
+ # C1 right-wall-only material: 1.5x RGB base color; retain metallic/roughness.
+ {"name":"Right wall C1 - brighter graphite","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.18,.24,.285,1],"metallicFactor":.55,"roughnessFactor":.42}},
 ]
 
 binary = bytearray()
@@ -48,8 +52,8 @@ def add_view(data, target):
     buffer_views.append({"buffer":0,"byteOffset":offset,"byteLength":len(data),"target":target})
     return len(buffer_views) - 1
 
-node_names = ["Floor Surface", "Wall Surfaces", "Ceiling Surface",
-              "Cyan Ceiling and Edge Strips", "Amber Warning Strip"]
+node_names = ["Floor Surface", "Wall Surfaces", "Right Wall Surface",
+              "Ceiling Surface", "Cyan Ceiling and Edge Strips", "Amber Warning Strip"]
 
 for group_index, (material_index, quads) in enumerate(groups):
     positions, normals, uvs, indices = [], [], [], []
