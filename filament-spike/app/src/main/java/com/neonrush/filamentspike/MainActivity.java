@@ -97,7 +97,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 53C | FPS --");
+        compactStatus.setText("BUILD 54C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -129,7 +129,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 53C | AMBIENT-ONLY RIGHT-WALL TEST | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 54C | RIGHT-WALL C1 MATERIAL TEST | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -214,9 +214,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     .build(engine);
             viewer.getScene().setIndirectLight(ambientLight);
 
-            // BUILD 53C: remove the BUILD 52C point light completely.
-            // Isolate the existing 20,000 IndirectLight ambient contribution; keep
-            // SUN, exposure, camera, bloom, materials and all other settings unchanged.
+            // BUILD 54C: isolate the right wall as its own GLB node and apply the C1 material.
+            // No lighting, exposure, camera, bloom, or rendering settings are changed.
 
             byte[] encoded = readAsset("corridor.glb.b64");
             byte[] glb = Base64.decode(
@@ -279,8 +278,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                 out.append(" | CYAN EMISSIVE STRIPS");
                             } else if (lowerName.contains("amber")) {
                                 out.append(" | AMBER EMISSIVE STRIP");
+                            } else if (lowerName.contains("right wall")) {
+                                out.append(" | RIGHT WALL C1 PBR");
                             } else if (lowerName.contains("wall")) {
-                                out.append(" | DARK WALL PBR");
+                                out.append(" | ORIGINAL WALL PBR");
                             } else if (lowerName.contains("floor")) {
                                 out.append(" | GRAPHITE FLOOR PBR");
                             }
@@ -651,7 +652,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 53C • AMBIENT-ONLY RIGHT-WALL TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 54C • AMBIENT-ONLY RIGHT-WALL TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -728,7 +729,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 53C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 54C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
