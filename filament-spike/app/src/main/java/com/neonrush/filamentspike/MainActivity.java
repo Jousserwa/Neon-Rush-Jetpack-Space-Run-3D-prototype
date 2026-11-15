@@ -19,6 +19,7 @@ import com.google.android.filament.LightManager;
 import com.google.android.filament.MaterialInstance;
 import com.google.android.filament.RenderableManager;
 import com.google.android.filament.Skybox;
+import com.google.android.filament.View;
 import com.google.android.filament.android.UiHelper;
 import com.google.android.filament.gltfio.FilamentAsset;
 import com.google.android.filament.gltfio.Gltfio;
@@ -62,7 +63,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private SurfaceView renderSurface;
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
-    private final float ambientIntensity = 3000.0f;
+    private final float ambientIntensity = 12000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
     private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
     private final double upX = 0.0, upY = 1.0, upZ = 0.0;
@@ -95,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 38 | FPS --");
+        compactStatus.setText("BUILD 42R | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -127,7 +128,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 42R | SRC d7b21e6 | 2026-11-14 14:34Z\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -158,7 +159,20 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
-            // Cheap diagnostic profile: no post-processing or dynamic shadow pass.\n            viewer.getView().setPostProcessingEnabled(false);\n            viewer.getView().setShadowingEnabled(false);\n\n            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            // Enable 4x MSAA for geometry edges; keep post-processing enabled because
+            // Filament's MSAA resolve runs in the post-process stage.
+            View.MultiSampleAntiAliasingOptions msaa =
+                    new View.MultiSampleAntiAliasingOptions();
+            msaa.enabled = true;
+            msaa.sampleCount = 4;
+            msaa.customResolve = false;
+            viewer.getView().setPostProcessingEnabled(true);
+            viewer.getView().setMultiSampleAntiAliasingOptions(msaa);
+
+            // Disable shadow mapping during this low-cost geometry diagnostic.
+            viewer.getView().setShadowingEnabled(false);
+
+            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 0.55f, sh0 * 0.68f, sh0 * 0.85f })
@@ -222,42 +236,50 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             try {
                 int instance = rm.getInstance(entity);
                 int count = rm.getPrimitiveCount(instance);
-                out.append("Node ").append(asset.getName(entity))
+                String nodeName = String.valueOf(asset.getName(entity));
+                String lowerName = nodeName.toLowerCase(Locale.US);
+                out.append("Node ").append(nodeName)
                         .append(" | primitives ").append(count).append('\n');
                 for (int p = 0; p < count; p++) {
                     MaterialInstance material = rm.getMaterialInstanceAt(instance, p);
                     out.append("  [").append(p).append("] ")
                             .append(material == null ? "(no material)" : material.getName());
-                    if (material != null && p <= 2) {
+                    if (material != null) {
                         try {
-                            // Bright matte test: isolate lighting from dark-metallic material response.
-                            float[][] colors = {
-                                    {1.0f, 0.025f, 0.025f, 1.0f},
-                                    {0.025f, 1.0f, 0.025f, 1.0f},
-                                    {1.0f, 0.0f, 1.0f, 1.0f}
-                            };
-                            float[] c = colors[p];
-                            material.setParameter("baseColorFactor", c[0], c[1], c[2], c[3]);
-                            material.setParameter("metallicFactor", 0.0f);
-                            material.setParameter("roughnessFactor", 1.0f);
-                            if (p == 2) {
-                                // Diagnostic only: P2 magenta emissive is independent of SUN lighting.
-                                material.setParameter("emissiveFactor", 50.0f, 0.0f, 50.0f);
-                                ceilingTestMessage = "P2 BRIGHT MAGENTA EMISSIVE OVERRIDE APPLIED";
-                                out.append(" | P2 MAGENTA EMISSIVE TEST");
-                            } else {
-                                out.append(" | MATTE PBR OVERRIDE APPLIED");
+                            // Apply diagnostic colors by named node, not local primitive index.
+                            // This remains correct when each corridor surface is its own mesh/node.
+                            if (lowerName.contains("ceiling")) {
+                                material.setParameter("baseColorFactor", 1.0f, 0.0f, 1.0f, 1.0f);
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                try {
+                                    material.setParameter("emissiveFactor", 8.0f, 0.0f, 8.0f);
+                                } catch (Throwable ignored) {
+                                    // KHR_materials_unlit ceiling is already independent of scene lighting.
+                                }
+                                ceilingTestMessage = "SEPARATE CEILING NODE: MAGENTA UNLIT TEST";
+                                out.append(" | MAGENTA UNLIT CEILING TEST");
+                            } else if (lowerName.contains("floor")) {
+                                material.setParameter("baseColorFactor", 1.0f, 0.025f, 0.025f, 1.0f);
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                out.append(" | RED FLOOR TEST");
+                            } else if (lowerName.contains("wall")) {
+                                material.setParameter("baseColorFactor", 0.025f, 1.0f, 0.025f, 1.0f);
+                                material.setParameter("metallicFactor", 0.0f);
+                                material.setParameter("roughnessFactor", 1.0f);
+                                out.append(" | GREEN WALL TEST");
                             }
                         } catch (Throwable ex) {
-                            if (p == 2) {
-                                ceilingTestMessage = "P2 EMISSIVE OVERRIDE FAILED: "
+                            if (lowerName.contains("ceiling")) {
+                                ceilingTestMessage = "CEILING MATERIAL OVERRIDE FAILED: "
                                         + ex.getClass().getSimpleName() + ": "
                                         + String.valueOf(ex.getMessage());
                             }
-                            out.append(" | PBR override FAILED: ")
+                            out.append(" | material override FAILED: ")
                                     .append(ex.getClass().getSimpleName()).append(": ")
                                     .append(String.valueOf(ex.getMessage()));
-                            Log.w("NeonRushFilament", "PBR override failed for primitive " + p, ex);
+                            Log.w("NeonRushFilament", "Material override failed for " + nodeName, ex);
                         }
                     }
                     out.append('\n');
@@ -409,6 +431,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int posIndex = attrs.getInt("POSITION");
                 JSONObject pos = accessors.getJSONObject(posIndex);
                 JSONObject posView = views.getJSONObject(pos.getInt("bufferView"));
+                int normalIndex = attrs.optInt("NORMAL", -1);
+                JSONObject normal = normalIndex >= 0 ? accessors.getJSONObject(normalIndex) : null;
+                JSONObject normalView = normal == null ? null
+                        : views.getJSONObject(normal.getInt("bufferView"));
 
                 if (pos.optInt("componentType") != 5126
                         || !"VEC3".equals(pos.optString("type"))) {
@@ -422,6 +448,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                         + pos.optInt("byteOffset", 0);
                 int posStride = posView.optInt("byteStride", 12);
                 int vertexCount = pos.getInt("count");
+                int normalBase = normal == null ? 0
+                        : normalView.optInt("byteOffset", 0) + normal.optInt("byteOffset", 0);
+                int normalStride = normal == null ? 0 : normalView.optInt("byteStride", 12);
 
                 int[] indices;
                 int indexAccessor = primitive.optInt("indices", -1);
@@ -472,10 +501,39 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                             float y = bin.getFloat(at + 4);
                             float z = bin.getFloat(at + 8);
                             out.append(String.format(Locale.US,
-                                    "V%d(%.4f,%.4f,%.4f) ",
+                                    "V%d(%.4f,%.4f,%.4f)",
                                     vertex, x, y, z));
+                            if (normal != null && normal.optInt("componentType") == 5126) {
+                                int na = normalBase + vertex * normalStride;
+                                out.append(String.format(Locale.US, " N(%.3f,%.3f,%.3f)",
+                                        bin.getFloat(na), bin.getFloat(na + 4),
+                                        bin.getFloat(na + 8)));
+                            }
+                            out.append("  ");
                         }
-                        out.append('\n');
+                        int a = indices[t], b = indices[t + 1], d = indices[t + 2];
+                        int aa = posBase + a * posStride;
+                        int bb = posBase + b * posStride;
+                        int dd = posBase + d * posStride;
+                        float abx = bin.getFloat(bb) - bin.getFloat(aa);
+                        float aby = bin.getFloat(bb + 4) - bin.getFloat(aa + 4);
+                        float abz = bin.getFloat(bb + 8) - bin.getFloat(aa + 8);
+                        float adx = bin.getFloat(dd) - bin.getFloat(aa);
+                        float ady = bin.getFloat(dd + 4) - bin.getFloat(aa + 4);
+                        float adz = bin.getFloat(dd + 8) - bin.getFloat(aa + 8);
+                        float nx = aby * adz - abz * ady;
+                        float ny = abz * adx - abx * adz;
+                        float nz = abx * ady - aby * adx;
+                        float area = 0.5f * (float) Math.sqrt(nx*nx + ny*ny + nz*nz);
+                        float windingDot = 0.0f;
+                        if (normal != null) {
+                            int na = normalBase + a * normalStride;
+                            windingDot = nx * bin.getFloat(na)
+                                    + ny * bin.getFloat(na + 4) + nz * bin.getFloat(na + 8);
+                        }
+                        out.append(String.format(Locale.US,
+                                "area=%.4f cross=(%.3f,%.3f,%.3f) winding·normal=%.4f\n",
+                                area, nx, ny, nz, windingDot));
                     }
                 }
 
@@ -551,7 +609,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 38 • LOW-COST RENDER TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 42R • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -567,7 +625,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 38 • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 42R • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -628,7 +686,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 38 | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 42R | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
