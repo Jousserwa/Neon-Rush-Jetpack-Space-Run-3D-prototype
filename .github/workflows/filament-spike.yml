@@ -49,8 +49,16 @@ jobs:
       - name: Regenerate isolated corridor GLB
         run: python3 filament-spike/tools/generate_corridor_glb.py
 
-      - name: Build debug APK
-        run: gradle -p filament-spike :app:assembleDebug
+      - name: Build debug and release APKs
+        run: gradle -p filament-spike :app:assembleDebug :app:assembleRelease
+
+      - name: Upload release validation APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-rush-filament-spike-release-validation
+          path: filament-spike/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
