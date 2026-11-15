@@ -57,6 +57,10 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private int sunInstance = -1;
     private final float sunIntensityLux = 100000.0f;
     private boolean running;
+    // ModelViewer's SurfaceView constructor destroys itself on view detachment.
+    private volatile boolean viewerDestroyed;
+    private boolean recreateRequested;
+    private boolean activityDestroying;
     private long windowStart;
     private int callbacks;
     private int renderedFrames;
@@ -165,6 +169,38 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             Gltfio.init();
             viewer = new ModelViewer(surface, Engine.create(),
                     new UiHelper(UiHelper.ContextErrorPolicy.DONT_CHECK), null);
+            viewerDestroyed = false;
+            // ModelViewer registers its own detach listener first. It destroys its
+            // UiHelper, swap chain, renderer and Engine before this listener runs.
+            surface.addOnAttachStateChangeListener(new android.view.View.OnAttachStateChangeListener() {
+                @Override
+                public void onViewAttachedToWindow(android.view.View v) {
+                    recordLifecycle("surface attached");
+                    if (viewerDestroyed && !recreateRequested
+                            && !activityDestroying && !isFinishing() && !isDestroyed()) {
+                        recreateRequested = true;
+                        recordLifecycle("viewer was destroyed on detach; recreating Activity");
+                        surface.post(() -> {
+                            if (!activityDestroying && !isFinishing() && !isDestroyed()) {
+                                recreate();
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onViewDetachedFromWindow(android.view.View v) {
+                    // ModelViewer's internal listener was registered before ours and
+                    // has already called destroy(); never call viewer.destroy() again.
+                    recordLifecycle("surface detached; ModelViewer auto-destroy completed");
+                    viewerDestroyed = true;
+                    running = false;
+                    Choreographer.getInstance().removeFrameCallback(MainActivity.this);
+                    viewer = null;
+                    ambientLight = null; // Engine destruction reclaimed this resource.
+                    sunInstance = -1;
+                }
+            });
             Engine engine = viewer.getEngine();
             viewer.getScene().setSkybox(new Skybox.Builder().build(engine));
             viewer.getScene().getSkybox().setColor(
@@ -326,7 +362,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     // Re-apply the authored camera whenever the SurfaceView changes size or the GLB loads.
     // This app has no orbit/pan gesture handler; the corridor camera remains fixed for comparison.
     private void applyCameraFraming() {
-        if (viewer == null) return;
+        if (viewer == null || viewerDestroyed || activityDestroying) return;
         try {
             viewer.getCamera().lookAt(
                     eyeX, eyeY, eyeZ, targetX, targetY, targetZ, upX, upY, upZ);
@@ -717,7 +753,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     protected void onResume() {
         super.onResume();
         recordLifecycle("onResume");
-        if (viewer != null && !running) {
+        if (viewer != null && !viewerDestroyed && !running) {
             running = true;
             windowStart = System.nanoTime();
             Choreographer.getInstance().postFrameCallback(this);
@@ -726,7 +762,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
     @Override
     public void doFrame(long frameTimeNanos) {
-        if (!running || viewer == null) return;
+        if (!running || viewer == null || viewerDestroyed || activityDestroying) return;
         try {
             callbacks++;
             long renderStartNanos = System.nanoTime();
@@ -762,7 +798,9 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 renderCpuSamples = 0;
                 windowStart = frameTimeNanos;
             }
-            Choreographer.getInstance().postFrameCallback(this);
+            if (running && !viewerDestroyed && !activityDestroying && viewer != null) {
+                Choreographer.getInstance().postFrameCallback(this);
+            }
         } catch (Throwable e) {
             showFailure("RENDER LOOP", e);
         }
@@ -772,32 +810,38 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     protected void onPause() {
         recordLifecycle("onPause begin");
         running = false;
+        recordLifecycle("frame callback removal begin");
         Choreographer.getInstance().removeFrameCallback(this);
+        recordLifecycle("frame callback removal complete");
         super.onPause();
         recordLifecycle("onPause end");
     }
 
     @Override
+    protected void onStop() {
+        recordLifecycle("onStop begin");
+        super.onStop();
+        recordLifecycle("onStop end");
+    }
+
+    @Override
     protected void onDestroy() {
         recordLifecycle("onDestroy begin");
+        activityDestroying = true;
         running = false;
-        if (viewer != null) {
-            try {
-                recordLifecycle("onDestroy before ambientLight cleanup");
-                if (ambientLight != null) {
-                    viewer.getEngine().destroyIndirectLight(ambientLight);
-                    recordLifecycle("onDestroy after ambientLight cleanup");
-                    ambientLight = null;
-                }
-                recordLifecycle("onDestroy before viewer.destroy");
-                viewer.destroy();
-                recordLifecycle("onDestroy after viewer.destroy");
-            } catch (Throwable e) {
-                appendCrashReport("CAUGHT EXCEPTION DURING onDestroy CLEANUP", e);
-                Log.e("NeonRushFilament", "Destroy failed", e);
-            }
-            viewer = null;
+        recordLifecycle("onDestroy frame callback removal begin");
+        Choreographer.getInstance().removeFrameCallback(this);
+        recordLifecycle("onDestroy frame callback removal complete");
+
+        // Do NOT call viewer.destroy() here. The SurfaceView-based ModelViewer
+        // constructor registered an automatic detach listener which owns teardown.
+        // Calling destroy here as well can destroy the same Engine twice.
+        if (viewer != null && !viewerDestroyed) {
+            recordLifecycle("onDestroy awaiting SurfaceView detach for ModelViewer cleanup");
+        } else {
+            recordLifecycle("onDestroy ModelViewer already destroyed by surface detach");
         }
+
         super.onDestroy();
         recordLifecycle("onDestroy end");
     }
