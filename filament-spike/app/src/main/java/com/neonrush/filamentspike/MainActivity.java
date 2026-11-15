@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 45C | FPS --");
+        compactStatus.setText("BUILD 46C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 45C | DARK PBR CEILING + FILL | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 46C | DARK PBR + AMBER FIX + BLOOM | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -173,8 +173,17 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             ao.enabled = false;
             viewer.getView().setAmbientOcclusionOptions(ao);
 
+            // Conservative mobile bloom trial for emissive cyan / amber geometry.
+            // Keep the low-resolution, low-strength path; disable in the next build if
+            // measured accepted FPS falls below the 55/s target on the test device.
             View.BloomOptions bloom = new View.BloomOptions();
-            bloom.enabled = false;
+            bloom.enabled = true;
+            bloom.strength = 0.06f;
+            bloom.resolution = 192;
+            bloom.levels = 4;
+            bloom.threshold = true;
+            bloom.quality = View.QualityLevel.LOW;
+            bloom.lensFlare = false;
             viewer.getView().setBloomOptions(bloom);
 
             // Disable shadow mapping during this low-cost geometry diagnostic.
@@ -194,7 +203,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
-                    .irradiance(1, new float[] { sh0 * 0.90f, sh0 * 0.95f, sh0 * 1.0f })
+                    .irradiance(1, new float[] { sh0 * 1.0f, sh0 * 1.0f, sh0 * 1.0f })
                     .intensity(ambientIntensity)
                     .build(engine);
             viewer.getScene().setIndirectLight(ambientLight);
@@ -618,7 +627,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 45C • PERF PASS: DR + NO MSAA / AO\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 46C • AMBER STRIP + LOW BLOOM TRIAL\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -634,7 +643,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 45C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 46C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -695,7 +704,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 45C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 46C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
