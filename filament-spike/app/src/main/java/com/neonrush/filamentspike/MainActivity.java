@@ -1,7 +1,11 @@
 package com.neonrush.filamentspike;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.util.Base64;
 import android.util.Log;
 import android.view.Choreographer;
@@ -29,6 +33,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -70,10 +76,14 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private final double verticalFov = 60.0;
     private final double nearPlane = 0.1, farPlane = 50.0;
     private volatile int surfaceWidth, surfaceHeight;
+    private final StringBuilder lifecycleTrace = new StringBuilder();
+    private File crashReportFile;
 
     @Override
     public void onCreate(Bundle b) {
         super.onCreate(b);
+        installCrashRecorder();
+        recordLifecycle("onCreate");
 
         FrameLayout root = new FrameLayout(this);
         SurfaceView surface = new SurfaceView(this);
@@ -83,6 +93,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                            oldLeft, oldTop, oldRight, oldBottom) -> {
             surfaceWidth = right - left;
             surfaceHeight = bottom - top;
+            recordLifecycle("surface layout " + surfaceWidth + "x" + surfaceHeight);
             applyCameraFraming();
         });
 
@@ -146,6 +157,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         root.addView(overlay, lp);
         overlay.bringToFront();
         setContentView(root);
+        root.post(this::showPreviousCrashReport);
 
         try {
             Gltfio.init();
@@ -702,6 +714,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     @Override
     protected void onResume() {
         super.onResume();
+        recordLifecycle("onResume");
         if (viewer != null && !running) {
             running = true;
             windowStart = System.nanoTime();
@@ -755,26 +768,96 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
 
     @Override
     protected void onPause() {
+        recordLifecycle("onPause begin");
         running = false;
         Choreographer.getInstance().removeFrameCallback(this);
         super.onPause();
+        recordLifecycle("onPause end");
     }
 
     @Override
     protected void onDestroy() {
+        recordLifecycle("onDestroy begin");
         running = false;
         if (viewer != null) {
             try {
+                recordLifecycle("onDestroy before ambientLight cleanup");
                 if (ambientLight != null) {
                     viewer.getEngine().destroyIndirectLight(ambientLight);
+                    recordLifecycle("onDestroy after ambientLight cleanup");
                     ambientLight = null;
                 }
+                recordLifecycle("onDestroy before viewer.destroy");
                 viewer.destroy();
+                recordLifecycle("onDestroy after viewer.destroy");
             } catch (Throwable e) {
+                appendCrashReport("CAUGHT EXCEPTION DURING onDestroy CLEANUP", e);
                 Log.e("NeonRushFilament", "Destroy failed", e);
             }
             viewer = null;
         }
         super.onDestroy();
+        recordLifecycle("onDestroy end");
+    }
+
+    // Persists Java crashes and lifecycle breadcrumbs so they can be copied on the next launch.
+    private void installCrashRecorder() {
+        crashReportFile = new File(getFilesDir(), "filament-crash-report.txt");
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            appendCrashReport("UNCAUGHT EXCEPTION on thread " + thread.getName(), error);
+            if (previous != null) previous.uncaughtException(thread, error);
+        });
+    }
+
+    private synchronized void recordLifecycle(String event) {
+        String line = System.currentTimeMillis() + " " + event + "\\n";
+        lifecycleTrace.append(line);
+        if (lifecycleTrace.length() > 12000) {
+            lifecycleTrace.delete(0, lifecycleTrace.length() - 12000);
+        }
+        Log.i("NeonRushLifecycle", event);
+    }
+
+    private synchronized void appendCrashReport(String heading, Throwable error) {
+        try (FileOutputStream out = new FileOutputStream(crashReportFile, true)) {
+            StringBuilder report = new StringBuilder();
+            report.append("\\n===== ").append(heading).append(" =====\\n");
+            report.append("Device SDK: ").append(android.os.Build.VERSION.SDK_INT).append("\\n");
+            report.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ")
+                    .append(android.os.Build.MODEL).append("\\n");
+            report.append("Recent lifecycle events:\\n").append(lifecycleTrace);
+            if (error != null) report.append("\\n").append(Log.getStackTraceString(error));
+            report.append("\\n");
+            out.write(report.toString().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (Throwable writeError) {
+            Log.e("NeonRushFilament", "Could not save crash report", writeError);
+        }
+    }
+
+    private void showPreviousCrashReport() {
+        if (crashReportFile == null || !crashReportFile.isFile()) return;
+        try {
+            byte[] bytes = java.nio.file.Files.readAllBytes(crashReportFile.toPath());
+            String report = new String(bytes, StandardCharsets.UTF_8);
+            new AlertDialog.Builder(this)
+                    .setTitle("Previous Filament crash report")
+                    .setMessage(report)
+                    .setPositiveButton("COPY REPORT", (dialog, which) -> {
+                        ClipboardManager clipboard = (ClipboardManager)
+                                getSystemService(Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Filament crash report", report));
+                            crashReportFile.delete();
+                            android.widget.Toast.makeText(this, "Crash report copied. Paste it into ChatGPT.",
+                                    android.widget.Toast.LENGTH_LONG).show();
+                        }
+                    })
+                    .setNegativeButton("CLOSE", null)
+                    .show();
+        } catch (Throwable e) {
+            Log.e("NeonRushFilament", "Could not display previous crash report", e);
+        }
     }
 }
