@@ -753,10 +753,22 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     protected void onResume() {
         super.onResume();
         recordLifecycle("onResume");
-        if (viewer != null && !viewerDestroyed && !running) {
-            running = true;
-            windowStart = System.nanoTime();
-            Choreographer.getInstance().postFrameCallback(this);
+
+        // Recent Apps can resume the Activity without a SurfaceView layout change.
+        // Wait until the view has completed its resume traversal, then restore the
+        // existing fixed camera projection from the actual surface dimensions
+        // before restarting Filament's frame loop.
+        if (viewer != null && !viewerDestroyed && !running && renderSurface != null) {
+            renderSurface.post(() -> {
+                if (viewer == null || viewerDestroyed || activityDestroying || running) return;
+                int width = renderSurface.getWidth();
+                int height = renderSurface.getHeight();
+                recordLifecycle("resume surface dimensions " + width + "x" + height);
+                applyCameraFraming();
+                running = true;
+                windowStart = System.nanoTime();
+                Choreographer.getInstance().postFrameCallback(this);
+            });
         }
     }
 
