@@ -77,7 +77,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private final double nearPlane = 0.1, farPlane = 50.0;
     private volatile int surfaceWidth, surfaceHeight;
     private final StringBuilder lifecycleTrace = new StringBuilder();
-    private File crashReportFile;
+    private File lifecycleJournalFile;
+    private File previousRunReportFile;
 
     @Override
     public void onCreate(Bundle b) {
@@ -800,64 +801,95 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         recordLifecycle("onDestroy end");
     }
 
-    // Persists Java crashes and lifecycle breadcrumbs so they can be copied on the next launch.
+    // Persist lifecycle breadcrumbs immediately so a native process crash still leaves evidence.
     private void installCrashRecorder() {
-        crashReportFile = new File(getFilesDir(), "filament-crash-report.txt");
+        lifecycleJournalFile = new File(getFilesDir(), "filament-lifecycle-journal.txt");
+        previousRunReportFile = new File(getFilesDir(), "filament-previous-run.txt");
+
+        // Preserve the last process's journal before starting a fresh one.
+        if (lifecycleJournalFile.isFile() && lifecycleJournalFile.length() > 0) {
+            if (previousRunReportFile.exists()) previousRunReportFile.delete();
+            if (!lifecycleJournalFile.renameTo(previousRunReportFile)) {
+                try (FileInputStream in = new FileInputStream(lifecycleJournalFile);
+                     FileOutputStream out = new FileOutputStream(previousRunReportFile, false)) {
+                    byte[] buffer = new byte[4096];
+                    int count;
+                    while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+                    out.flush();
+                    out.getFD().sync();
+                    lifecycleJournalFile.delete();
+                } catch (Throwable copyError) {
+                    Log.e("NeonRushFilament", "Could not preserve previous lifecycle journal", copyError);
+                }
+            }
+        }
+
         Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
-            appendCrashReport("UNCAUGHT EXCEPTION on thread " + thread.getName(), error);
+            appendCrashReport("UNCAUGHT JAVA EXCEPTION on thread " + thread.getName(), error);
             if (previous != null) previous.uncaughtException(thread, error);
         });
     }
 
     private synchronized void recordLifecycle(String event) {
-        String line = System.currentTimeMillis() + " " + event + "\\n";
+        String line = System.currentTimeMillis() + " | pid "
+                + android.os.Process.myPid() + " | " + event + "\n";
         lifecycleTrace.append(line);
         if (lifecycleTrace.length() > 12000) {
             lifecycleTrace.delete(0, lifecycleTrace.length() - 12000);
         }
         Log.i("NeonRushLifecycle", event);
+        // This is deliberately synchronous and flushed to storage at lifecycle boundaries.
+        // It does not run in the render-frame callback.
+        try (FileOutputStream out = new FileOutputStream(lifecycleJournalFile, true)) {
+            out.write(line.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            out.getFD().sync();
+        } catch (Throwable writeError) {
+            Log.e("NeonRushFilament", "Could not persist lifecycle event: " + event, writeError);
+        }
     }
 
     private synchronized void appendCrashReport(String heading, Throwable error) {
-        try (FileOutputStream out = new FileOutputStream(crashReportFile, true)) {
+        try (FileOutputStream out = new FileOutputStream(lifecycleJournalFile, true)) {
             StringBuilder report = new StringBuilder();
-            report.append("\\n===== ").append(heading).append(" =====\\n");
-            report.append("Device SDK: ").append(android.os.Build.VERSION.SDK_INT).append("\\n");
+            report.append("\n===== ").append(heading).append(" =====\n");
+            report.append("Device SDK: ").append(android.os.Build.VERSION.SDK_INT).append("\n");
             report.append("Device: ").append(android.os.Build.MANUFACTURER).append(" ")
-                    .append(android.os.Build.MODEL).append("\\n");
-            report.append("Recent lifecycle events:\\n").append(lifecycleTrace);
-            if (error != null) report.append("\\n").append(Log.getStackTraceString(error));
-            report.append("\\n");
+                    .append(android.os.Build.MODEL).append("\n");
+            report.append("Recent lifecycle events:\n").append(lifecycleTrace);
+            if (error != null) report.append("\n").append(Log.getStackTraceString(error));
+            report.append("\n");
             out.write(report.toString().getBytes(StandardCharsets.UTF_8));
             out.flush();
+            out.getFD().sync();
         } catch (Throwable writeError) {
-            Log.e("NeonRushFilament", "Could not save crash report", writeError);
+            Log.e("NeonRushFilament", "Could not save crash details", writeError);
         }
     }
 
     private void showPreviousCrashReport() {
-        if (crashReportFile == null || !crashReportFile.isFile()) return;
+        if (previousRunReportFile == null || !previousRunReportFile.isFile()) return;
         try {
-            byte[] bytes = java.nio.file.Files.readAllBytes(crashReportFile.toPath());
+            byte[] bytes = java.nio.file.Files.readAllBytes(previousRunReportFile.toPath());
             String report = new String(bytes, StandardCharsets.UTF_8);
             new AlertDialog.Builder(this)
-                    .setTitle("Previous Filament crash report")
+                    .setTitle("Previous run diagnostic log")
                     .setMessage(report)
-                    .setPositiveButton("COPY REPORT", (dialog, which) -> {
+                    .setPositiveButton("COPY LOG", (dialog, which) -> {
                         ClipboardManager clipboard = (ClipboardManager)
                                 getSystemService(Context.CLIPBOARD_SERVICE);
                         if (clipboard != null) {
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Filament crash report", report));
-                            crashReportFile.delete();
-                            android.widget.Toast.makeText(this, "Crash report copied. Paste it into ChatGPT.",
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Filament previous-run log", report));
+                            previousRunReportFile.delete();
+                            android.widget.Toast.makeText(this, "Diagnostic log copied. Paste it into ChatGPT.",
                                     android.widget.Toast.LENGTH_LONG).show();
                         }
                     })
                     .setNegativeButton("CLOSE", null)
                     .show();
         } catch (Throwable e) {
-            Log.e("NeonRushFilament", "Could not display previous crash report", e);
+            Log.e("NeonRushFilament", "Could not display previous run log", e);
         }
     }
 }
