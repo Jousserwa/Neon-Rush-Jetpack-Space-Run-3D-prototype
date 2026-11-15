@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 42R | FPS --");
+        compactStatus.setText("BUILD 43C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 42R | SRC d7b21e6 | 2026-11-14 14:34Z\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 43C | GLB CEILING TEST | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -259,16 +259,6 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                 }
                                 ceilingTestMessage = "SEPARATE CEILING NODE: MAGENTA UNLIT TEST";
                                 out.append(" | MAGENTA UNLIT CEILING TEST");
-                            } else if (lowerName.contains("floor")) {
-                                material.setParameter("baseColorFactor", 1.0f, 0.025f, 0.025f, 1.0f);
-                                material.setParameter("metallicFactor", 0.0f);
-                                material.setParameter("roughnessFactor", 1.0f);
-                                out.append(" | RED FLOOR TEST");
-                            } else if (lowerName.contains("wall")) {
-                                material.setParameter("baseColorFactor", 0.025f, 1.0f, 0.025f, 1.0f);
-                                material.setParameter("metallicFactor", 0.0f);
-                                material.setParameter("roughnessFactor", 1.0f);
-                                out.append(" | GREEN WALL TEST");
                             }
                         } catch (Throwable ex) {
                             if (lowerName.contains("ceiling")) {
@@ -609,7 +599,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 42R • CEILING GEOMETRY / AMBIENT TEST\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 43C • GLB CEILING VISIBILITY TEST\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -625,7 +615,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 42R • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 43C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -686,7 +676,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 42R | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 43C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
