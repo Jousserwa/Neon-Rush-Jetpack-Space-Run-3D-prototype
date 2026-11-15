@@ -57,13 +57,13 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
     private long renderCpuNanosSum;
     private long renderCpuNanosMax;
     private int renderCpuSamples;
-    private String ceilingTestMessage = "P2 MAGENTA EMISSIVE TEST NOT APPLIED";
+    private String ceilingTestMessage = "Ceiling panels: dark PBR";
     private String modelInfo = "Waiting for GLB diagnostics…";
     private String geometryInfo = "Triangle geometry has not been read yet.\n";
     private SurfaceView renderSurface;
     private final float[] skyboxColor = {0.0f, 0.0f, 0.1f, 1.0f};
     private final float[] sunDirection = {-0.324f, -0.811f, -0.487f};
-    private final float ambientIntensity = 17000.0f;
+    private final float ambientIntensity = 18000.0f;
     private final double eyeX = 0.0, eyeY = 1.6, eyeZ = 2.0;
     private final double targetX = 0.0, targetY = 1.6, targetZ = -9.0;
     private final double upX = 0.0, upY = 1.0, upZ = 0.0;
@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 46C | FPS --");
+        compactStatus.setText("BUILD 47C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 46C | DARK PBR + AMBER FIX + BLOOM | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 47C | DARK PBR + AMBER FIX + LOW BLOOM | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -138,7 +138,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 dp(340), -2, Gravity.TOP | Gravity.END);
         lp.topMargin = dp(10);
         lp.rightMargin = dp(10);
-        root.addView(overlay, lp);
+        // Keep diagnostics available in debug/test APKs; hide the entire overlay in release builds.\n        overlay.setVisibility(BuildConfig.DEBUG ? android.view.View.VISIBLE : android.view.View.GONE);\n        root.addView(overlay, lp);
         setContentView(root);
 
         try {
@@ -200,7 +200,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             dynamicResolution.quality = View.QualityLevel.LOW;
             viewer.getView().setDynamicResolutionOptions(dynamicResolution);
 
-            // Constant low-blue ambient SH: diffuse fill only, not a reflection cubemap.
+            // Slight neutral ambient lift to reveal the right wall; validate the 57/s target on-device.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 1.0f, sh0 * 1.0f, sh0 * 1.0f })
@@ -627,7 +627,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
             float aspect = h > 0 ? (float) w / h : 0.0f;
             return String.format(Locale.US,
-                    "BUILD 46C • AMBER STRIP + LOW BLOOM TRIAL\nSUN %s | %.0f lux | dir %s\n" +
+                    "BUILD 47C • AMBER STRIP + LOW BLOOM\nSUN %s | %.0f lux | dir %s\n" +
                     "IndirectLight %s | %.0f | SH diffuse only\n" +
                     "Skybox %s | color %.3f %.3f %.3f\n" +
                     "Exposure f/16 | 1/125s | ISO100\n" +
@@ -643,7 +643,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                     upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h, aspect,
                     ceilingTestMessage);
         } catch (Throwable e) {
-            return "BUILD 46C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
+            return "BUILD 47C • diagnostic error: " + e.getClass().getSimpleName() + "\n";
         }
     }
 
@@ -704,7 +704,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 46C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 47C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
