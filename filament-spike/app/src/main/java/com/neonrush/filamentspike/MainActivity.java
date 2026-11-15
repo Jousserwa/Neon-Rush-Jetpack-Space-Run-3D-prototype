@@ -139,7 +139,8 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         lp.topMargin = dp(10);
         lp.rightMargin = dp(10);
         // Keep diagnostics visible in debug/test APKs; hide them in release builds.
-        overlay.setVisibility(BuildConfig.DEBUG ? android.view.View.VISIBLE : android.view.View.GONE);
+        boolean isDebuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        overlay.setVisibility(isDebuggable ? android.view.View.VISIBLE : android.view.View.GONE);
         overlay.setElevation(dp(12));
         root.addView(overlay, lp);
         overlay.bringToFront();
