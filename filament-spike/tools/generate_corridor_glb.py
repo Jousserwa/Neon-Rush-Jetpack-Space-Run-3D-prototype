@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate isolated, named corridor surfaces; ceiling uses KHR_materials_unlit for diagnosis."""
+"""Generate isolated, named corridor surfaces with a physically based dark ceiling."""
 import base64, json, struct
 from pathlib import Path
 
@@ -18,8 +18,8 @@ groups = [
     (3, [
         ((1,0,0), [(-2.42,.12,3),(-2.42,.12,-10),(-2.42,.20,-10),(-2.42,.20,3)]),
         ((-1,0,0), [(2.42,.12,3),(2.42,.20,3),(2.42,.20,-10),(2.42,.12,-10)]),
-        ((0,-1,0), [(-1.8,3.96,3),(-1.8,3.96,-10),(-1.65,3.96,-10),(-1.65,3.96,3)]),
-        ((0,-1,0), [(1.65,3.96,3),(1.65,3.96,-10),(1.8,3.96,-10),(1.8,3.96,3)]),
+        ((0,-1,0), [(-1.8,3.92,3),(-1.8,3.92,-10),(-1.65,3.92,-10),(-1.65,3.92,3)]),
+        ((0,-1,0), [(1.65,3.92,3),(1.65,3.92,-10),(1.8,3.92,-10),(1.8,3.92,3)]),
     ]),
     (4, [((0,1,0), [(-2.45,.015,-9.7),(-2.45,.015,-9.55),(2.45,.015,-9.55),(2.45,.015,-9.7)])]),
 ]
@@ -27,7 +27,7 @@ groups = [
 materials = [
  {"name":"Graphite floor","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.055,.075,.095,1],"metallicFactor":.72,"roughnessFactor":.48}},
  {"name":"Dark wall panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.12,.16,.19,1],"metallicFactor":.55,"roughnessFactor":.42}},
- {"name":"Ceiling panels","doubleSided":True,"extensions":{"KHR_materials_unlit":{}},"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
+ {"name":"Ceiling panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
  {"name":"Cyan emissive strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.02,.32,.42,1],"metallicFactor":.15,"roughnessFactor":.3},"emissiveFactor":[0,.75,1]},
  {"name":"Amber warning strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.5,.18,.025,1],"metallicFactor":.1,"roughnessFactor":.35},"emissiveFactor":[1,.22,.015]},
 ]
@@ -79,15 +79,13 @@ for group_index, (material_index, quads) in enumerate(groups):
 
     primitive = {"attributes":{"POSITION":p_accessor,"NORMAL":n_accessor,"TEXCOORD_0":uv_accessor},
                  "indices":i_accessor,"material":material_index,"mode":4}
-    # The ceiling's KHR_materials_unlit extension is declared on its MATERIAL above.
+    # The ceiling uses the standard metallic-roughness PBR pipeline.
     mesh_index = len(meshes)
     meshes.append({"name":node_names[group_index] + " Mesh","primitives":[primitive]})
     nodes.append({"mesh":mesh_index,"name":node_names[group_index]})
 
 document = {
  "asset":{"version":"2.0","generator":"Neon Rush Isolated Corridor Surfaces"},
- "extensionsUsed":["KHR_materials_unlit"],
- "extensionsRequired":["KHR_materials_unlit"],
  "scene":0,"scenes":[{"nodes":list(range(len(nodes)))}],
  "nodes":nodes,"meshes":meshes,"materials":materials,"accessors":accessors,
  "buffers":[{"byteLength":len(binary)}],"bufferViews":buffer_views,
