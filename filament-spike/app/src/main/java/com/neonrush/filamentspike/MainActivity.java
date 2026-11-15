@@ -83,6 +83,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                                            oldLeft, oldTop, oldRight, oldBottom) -> {
             surfaceWidth = right - left;
             surfaceHeight = bottom - top;
+            applyCameraFraming();
         });
 
         LinearLayout overlay = new LinearLayout(this);
@@ -96,7 +97,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         compactStatus.setTextColor(-1);
         compactStatus.setTextSize(10);
         compactStatus.setPadding(dp(7), dp(7), dp(7), dp(7));
-        compactStatus.setText("BUILD 49C | FPS --");
+        compactStatus.setText("BUILD 50C | FPS --");
         detailsToggle = new TextView(this);
         detailsToggle.setTextColor(0xFF7FEAFF);
         detailsToggle.setTextSize(10);
@@ -128,7 +129,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         status.setTextColor(-1);
         status.setTextSize(9);
         status.setPadding(dp(10), dp(8), dp(10), dp(8));
-        status.setText("NEON RUSH • FILAMENT BUILD 49C | DARK PBR + AMBER FIX + BLOOM 0.20 | 2026-11-15\\nLoading corridor…");
+        status.setText("NEON RUSH • FILAMENT BUILD 50C | CAMERA LOCK + VISIBLE EMISSIVE BLOOM | 2026-11-15\\nLoading corridor…");
         detailsPanel = new ScrollView(this);
         detailsPanel.setFillViewport(false);
         detailsPanel.addView(status);
@@ -164,8 +165,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             lightManager.setDirection(sunInstance,
                     sunDirection[0], sunDirection[1], sunDirection[2]);
 
-            // Performance pass: remove 4x MSAA and keep post-processing available
-            // for the optional future bloom test, but leave bloom and SSAO disabled.
+            // Performance pass: remove 4x MSAA; retain the validated BUILD 49C bloom settings.
             View.MultiSampleAntiAliasingOptions msaa =
                     new View.MultiSampleAntiAliasingOptions();
             msaa.enabled = false;
@@ -205,7 +205,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             dynamicResolution.quality = View.QualityLevel.LOW;
             viewer.getView().setDynamicResolutionOptions(dynamicResolution);
 
-            // Slight neutral ambient lift to reveal the right wall; validate the 57/s target on-device.
+            // Keep the validated ambient level unchanged during the camera-framing check.
             float sh0 = 0.282095f;
             ambientLight = new IndirectLight.Builder()
                     .irradiance(1, new float[] { sh0 * 1.0f, sh0 * 1.0f, sh0 * 1.0f })
@@ -225,6 +225,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
             }
             String glbInfo = inspectGlbJson(glb);
             modelInfo = diagnoseAndFitCamera(asset) + glbInfo;
+            if (renderSurface != null) renderSurface.post(this::applyCameraFraming);
             updateStatus("NEON RUSH • FILAMENT DIAGNOSTIC");
         } catch (Throwable e) {
             showFailure("INITIALIZATION", e);
@@ -236,22 +237,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         float[] center = bounds.getCenter();
         float[] half = bounds.getHalfExtent();
 
-        viewer.getCamera().lookAt(
-                eyeX, eyeY, eyeZ, targetX, targetY, targetZ, upX, upY, upZ);
-        viewer.setCameraNear((float) nearPlane);
-        viewer.setCameraFar((float) farPlane);
-        if (renderSurface != null) {
-            renderSurface.post(() -> {
-                int w = renderSurface.getWidth(), h = renderSurface.getHeight();
-                if (w > 0 && h > 0 && viewer != null) {
-                    viewer.getCamera().setProjection(verticalFov, (double) w / h,
-                            nearPlane, farPlane,
-                            com.google.android.filament.Camera.Fov.VERTICAL);
-                    surfaceWidth = w;
-                    surfaceHeight = h;
-                }
-            });
-        }
+        applyCameraFraming();
 
         int[] entities = asset.getRenderableEntities();
         RenderableManager rm = viewer.getEngine().getRenderableManager();
@@ -315,6 +301,34 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
         }
         Log.i("NeonRushFilament", out.toString());
         return out.toString();
+    }
+
+    // Re-apply the authored camera whenever the SurfaceView changes size or the GLB loads.
+    // This app has no orbit/pan gesture handler; the corridor camera remains fixed for comparison.
+    private void applyCameraFraming() {
+        if (viewer == null) return;
+        try {
+            viewer.getCamera().lookAt(
+                    eyeX, eyeY, eyeZ, targetX, targetY, targetZ, upX, upY, upZ);
+            viewer.setCameraNear((float) nearPlane);
+            viewer.setCameraFar((float) farPlane);
+            int w = renderSurface == null ? surfaceWidth : renderSurface.getWidth();
+            int h = renderSurface == null ? surfaceHeight : renderSurface.getHeight();
+            if (w > 0 && h > 0) {
+                viewer.getCamera().setProjection(verticalFov, (double) w / h,
+                        nearPlane, farPlane,
+                        com.google.android.filament.Camera.Fov.VERTICAL);
+                surfaceWidth = w;
+                surfaceHeight = h;
+            }
+            Log.i("NeonRushFilament", String.format(Locale.US,
+                    "CAMERA LOCK BUILD 50C | eye (%.1f, %.1f, %.1f) target (%.1f, %.1f, %.1f) " +
+                    "up (%.1f, %.1f, %.1f) verticalFov %.1f near %.2f far %.1f surface %dx%d",
+                    eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
+                    upX, upY, upZ, verticalFov, nearPlane, farPlane, w, h));
+        } catch (Throwable e) {
+            Log.e("NeonRushFilament", "Camera framing reset failed", e);
+        }
     }
 
     // Reads the JSON chunk embedded in the GLB; no external parser or file upload needed.
@@ -709,7 +723,7 @@ public final class MainActivity extends Activity implements Choreographer.FrameC
                 int acceptedFps = Math.round(renderedFrames * 1_000_000_000f / elapsed);
                 int falseReturns = Math.round(skippedFrames * 1_000_000_000f / elapsed);
                 compactStatus.setText(String.format(Locale.US,
-                        "BUILD 49C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
+                        "BUILD 50C | accepted %d/s | callbacks %d/s", acceptedFps, callbackFps));
                 status.setText("NEON RUSH • FILAMENT DIAGNOSTIC\n"
                         + String.format(Locale.US,
                         "render() accepted %d/s | callbacks %d/s | false returns %d/s\n" +
