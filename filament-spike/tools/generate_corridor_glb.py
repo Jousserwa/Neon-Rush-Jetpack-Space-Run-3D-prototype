@@ -34,8 +34,9 @@ materials = [
  {"name":"Ceiling panels","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.075,.095,.12,1],"metallicFactor":.6,"roughnessFactor":.5}},
  {"name":"Cyan emissive strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.02,.32,.42,1],"metallicFactor":.15,"roughnessFactor":.3},"emissiveFactor":[0,.75,1]},
  {"name":"Amber warning strips","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.5,.18,.025,1],"metallicFactor":.1,"roughnessFactor":.35},"emissiveFactor":[1,.22,.015]},
- # C1 right-wall-only material: 1.5x RGB base color; retain metallic/roughness.
- {"name":"Right wall C1 - brighter graphite","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.18,.24,.285,1],"metallicFactor":.55,"roughnessFactor":.42}},
+ # BUILD 55C: right-wall diffuse-response test. Keep C1 base color and roughness;
+ # reduce only this isolated wall's metallic factor from 0.55 to 0.05.
+ {"name":"Right wall C1 - brighter graphite","doubleSided":True,"pbrMetallicRoughness":{"baseColorFactor":[.18,.24,.285,1],"metallicFactor":.05,"roughnessFactor":.42}},
 ]
 
 binary = bytearray()
